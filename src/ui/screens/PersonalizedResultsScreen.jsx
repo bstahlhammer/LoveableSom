@@ -1,0 +1,389 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { saveScroll, getScroll } from '../utils/scrollStore.js'
+import { useShortlist } from '../hooks/useShortlist.js'
+import T from '../theme/T.js'
+import { getWines, sortWines, computeMatch, computeMatchWithConfidence, applyFilters, getFilterFacets, EMPTY_FILTERS } from '@/core/api'
+import SortToggle from '../components/SortToggle.jsx'
+import BottomNav from '../components/BottomNav.jsx'
+import FilterBar from '../components/FilterBar.jsx'
+import FilterSheet from '../components/FilterSheet.jsx'
+import { fitBarTone, getMatchTag } from '../constants/matchThresholds.js'
+
+const SORT_OPTIONS = [
+  { value: 'match',           label: 'Best Match' },
+  { value: 'rating',          label: 'Critic Score' },
+  { value: 'crowd',           label: 'Crowd Pleaser' },
+  { value: 'value',           label: 'Best Value' },
+  { value: 'price_asc',       label: 'Price: Low–High' },
+  { value: 'approachability', label: 'Most Approachable' },
+]
+
+const REASON_COPY = {
+  too_blurry:       'The image was a little blurry, try holding steadier.',
+  too_dark:         'It was too dark, move toward better light.',
+  too_far:          'You were too far away, get closer so the labels fill the frame.',
+  glare:            'There was glare on the labels, change angle or shade the page.',
+  angle_skewed:     'The angle was skewed, square the camera to the list or bottle.',
+  label_cut_off:    'Part of the label was cut off, re-frame to include the full label.',
+  not_a_wine_image: 'I could not find any wine text in this image.',
+  list_too_dense:   'The list was too dense to read at once, try one section.',
+}
+
+function normalizeScanResult(scannedWines) {
+  if (!scannedWines) return null
+  if (Array.isArray(scannedWines)) {
+    return { wines: scannedWines, readability: 'good', retakeReasons: [], message: '' }
+  }
+  if (typeof scannedWines === 'object') {
+    return {
+      wines: Array.isArray(scannedWines.wines) ? scannedWines.wines : [],
+      readability: scannedWines.readability || (scannedWines.wines?.length ? 'partial' : 'unreadable'),
+      retakeReasons: Array.isArray(scannedWines.retakeReasons) ? scannedWines.retakeReasons : [],
+      message: typeof scannedWines.message === 'string' ? scannedWines.message : '',
+    }
+  }
+  return null
+}
+
+function FitBar({ score, lowConfidence = false }) {
+  const tone = fitBarTone(score, T)
+  const barColor = lowConfidence ? `${tone}88` : tone
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, height: 5, background: T.ink100, borderRadius: 3, position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${score}%`, background: barColor, borderRadius: 3 }} />
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 38, textAlign: 'right', fontFamily: T.fontBody }}>
+        {lowConfidence ? `~${score}` : score}
+      </span>
+    </div>
+  )
+}
+
+function getTag(score) {
+  return getMatchTag(score, T)
+}
+
+function WineRowCard({ wine, rank, onTap, onSave, saved }) {
+  const score = wine.adjustedMatch ?? wine.computedMatch ?? wine.rating ?? 75
+  const tag = getTag(score)
+  const cardBg = score >= 70 ? 'white' : score >= 50 ? T.ink50 : 'oklch(98% 0.02 30)'
+  const borderColor = score < 50 ? T.scarlet300 : T.ink150
+
+  return (
+    <div
+      onClick={() => onTap?.(wine)}
+      style={{
+        padding: '14px 14px', marginBottom: 8,
+        background: cardBg,
+        border: `1px solid ${borderColor}`,
+        borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 8,
+        opacity: score < 50 ? 0.85 : 1,
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: T.ink400, fontWeight: 600, fontFamily: T.fontBody }}>#{rank + 1}</span>
+            {tag && (
+              <span style={{
+                fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 9999,
+                background: tag.color, color: 'white', letterSpacing: '0.04em',
+                textTransform: 'uppercase', fontFamily: T.fontBody,
+              }}>{tag.label}</span>
+            )}
+          </div>
+          <div style={{
+            fontFamily: T.fontDisplay, fontSize: 16, color: T.ink900, lineHeight: 1.2,
+            textDecoration: score < 50 ? 'line-through' : 'none',
+            textDecorationColor: T.scarlet400,
+          }}>
+            {wine.name}{wine.vintage ? ` ${wine.vintage}` : ''}
+          </div>
+          <div style={{ fontSize: 11, color: T.ink400, marginTop: 2, fontFamily: T.fontBody }}>
+            {[wine.grape, wine.region].filter(Boolean).join(' · ')}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+          {wine.price != null && (
+            <div style={{ fontFamily: T.fontDisplay, fontSize: 18, fontWeight: 600, color: T.ink900 }}>{wine.price}</div>
+          )}
+          <button
+            onClick={e => { e.stopPropagation(); onSave?.() }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: saved ? T.scarlet500 : T.ink300, padding: 0, lineHeight: 1 }}
+          >
+            {saved ? '♥' : '♡'}
+          </button>
+        </div>
+      </div>
+      <FitBar score={score} lowConfidence={wine.matchIsLow} />
+      {wine.matchIsLow && wine.matchReason && (
+        <div style={{ fontSize: 10, color: T.ochre500, fontFamily: T.fontBody, letterSpacing: '0.06em', marginTop: -4 }}>
+          ~ estimated · {wine.matchReason}
+        </div>
+      )}
+      {wine.tasting && (
+        <p style={{ fontSize: 12, color: T.ink500, margin: 0, lineHeight: 1.5, fontFamily: T.fontBody, fontStyle: 'italic' }}>
+          {wine.tasting}
+        </p>
+      )}
+      {wine.tasteMatch?.summary && (
+        <p style={{ fontSize: 12, color: T.forest700, margin: wine.tasting ? '4px 0 0' : 0, lineHeight: 1.45, fontFamily: T.fontBody }}>
+          {wine.tasteMatch.summary}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function defaultSortKey(buyingFor, scanIntent) {
+  const tags = scanIntent?.tags ?? []
+  if (tags.includes('splurge'))    return 'value'
+  if (tags.includes('crowd'))      return 'crowd'
+  if (buyingFor === 'group')       return 'crowd'
+  if (buyingFor === 'gift')        return 'value'
+  return 'match'
+}
+
+export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfile, buyingFor, scanIntent, scannedWines, onWineSelect, scanId, mealAppeal }) {
+  const [sortKey, setSortKey] = useState(() => defaultSortKey(buyingFor, scanIntent))
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [showOnlySaved, setShowOnlySaved] = useState(false)
+  const shortlist = useShortlist()
+  const scrollRef = useRef(null)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTop = getScroll('personalizedResults')
+    const save = () => saveScroll('personalizedResults', el.scrollTop)
+    el.addEventListener('scroll', save, { passive: true })
+    return () => el.removeEventListener('scroll', save)
+  }, [])
+
+  const scanResult = normalizeScanResult(scannedWines)
+  const fromScan = scanResult !== null && scanResult.wines.length > 0
+  const baseWines = fromScan ? scanResult.wines : getWines()
+  const readability = scanResult?.readability ?? 'good'
+  const retakeReasons = scanResult?.retakeReasons ?? []
+
+  const scoredWines = useMemo(() => {
+    if (!tasteProfile) return baseWines
+    return baseWines.map(w => {
+      const raw = w.computedMatch ?? computeMatch(w, tasteProfile)
+      const { score: adjusted, isLow, reason } = computeMatchWithConfidence({ ...w, computedMatch: raw }, tasteProfile)
+      return {
+        ...w,
+        computedMatch: raw,      // preserved for sort
+        adjustedMatch: adjusted,
+        matchIsLow: isLow,
+        matchReason: reason,
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseWines, tasteProfile])
+
+  const facets = useMemo(() => getFilterFacets(scoredWines), [scoredWines])
+  const filteredWines = useMemo(() => applyFilters(scoredWines, filters), [scoredWines, filters])
+
+  const sortedWines = useMemo(
+    () => sortWines(filteredWines, sortKey, tasteProfile),
+    [filteredWines, sortKey, tasteProfile]
+  )
+
+  const topMatch = useMemo(() => {
+    if (!tasteProfile || filteredWines.length === 0) return 0
+    return Math.max(...filteredWines.map(w => w.computedMatch ?? 0))
+  }, [filteredWines, tasteProfile])
+  const noStrongMatches = tasteProfile && filteredWines.length > 0 && topMatch < 80
+
+  const lowConfidenceCount = useMemo(
+    () => filteredWines.filter(w => typeof w.confidence === 'number' && w.confidence < 60).length,
+    [filteredWines]
+  )
+  const showLowConfidenceWarning = fromScan && filteredWines.length > 0 &&
+    lowConfidenceCount / filteredWines.length >= 0.3
+
+  const showRetakePanel = fromScan && readability !== 'good'
+
+  const strongFits = sortedWines.filter(w => (w.computedMatch ?? 0) >= 70).length
+  const toSkip = sortedWines.filter(w => (w.computedMatch ?? 0) < 50).length
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: T.ink0, position: 'relative', overflow: 'hidden' }}>
+      {/* Watercolor washes */}
+      <div style={{ position: 'absolute', top: -80, left: -80, width: 280, height: 280, borderRadius: '50%', background: T.forest500, opacity: 0.05, filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'absolute', top: -60, right: -60, width: 220, height: 220, borderRadius: '50%', background: T.cobalt500, opacity: 0.06, filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
+
+      {/* Header */}
+      <div style={{ padding: '52px 22px 12px', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <button onClick={goBack} style={{ background: 'transparent', border: 'none', color: T.ink400, fontSize: 18, cursor: 'pointer', padding: 0, lineHeight: 1 }}>←</button>
+          <span style={{ fontSize: 11, color: T.ink400, fontFamily: T.fontBody }}>{scoredWines.length} wine{scoredWines.length !== 1 ? 's' : ''} on this list</span>
+          <button onClick={() => setFilterOpen(true)} style={{ background: 'transparent', border: 'none', color: T.forest500, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: T.fontBody }}>Filters</button>
+        </div>
+        <h1 style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 28, lineHeight: 1.1, margin: '0 0 6px', letterSpacing: '-0.01em', color: T.ink900 }}>
+          {strongFits > 0
+            ? <><em style={{ color: T.forest500 }}>{strongFits} strong fit{strongFits !== 1 ? 's' : ''}</em>{toSkip > 0 ? `, ${toSkip} to skip.` : '.'}</>
+            : noStrongMatches
+              ? <><em style={{ color: T.scarlet500 }}>Nothing here</em> is truly in your lane.</>
+              : <>Your matches.</>
+          }
+        </h1>
+        <p style={{ fontSize: 12, color: T.ink400, margin: 0, lineHeight: 1.45, fontFamily: T.fontBody }}>
+          Ranked by taste fit
+          {mealAppeal ? ` · matched to "${mealAppeal}"` : ''}
+          {tasteProfile?.name ? ` · ${tasteProfile.name.replace(/^The\s+/i, '')}` : ''}
+        </p>
+      </div>
+
+      {/* Filter bar */}
+      {scoredWines.length > 0 && (
+        <div style={{ position: 'relative', zIndex: 1, flexShrink: 0 }}>
+          <FilterBar
+            filters={filters}
+            onOpen={() => setFilterOpen(true)}
+            onChange={setFilters}
+            resultCount={filteredWines.length}
+            totalCount={scoredWines.length}
+          />
+        </div>
+      )}
+
+      {/* Scrollable content */}
+      <div ref={scrollRef} className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', position: 'relative', zIndex: 1, background: `linear-gradient(to bottom, ${T.forest50} 0%, ${T.ink0} 35%, ${T.ink0} 70%, ${T.cobalt50} 100%)` }}>
+        {/* Shortlist banner */}
+        {shortlist.list.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '8px 22px',
+            background: T.forest100,
+            borderBottom: `1px solid ${T.forest300}`,
+            fontFamily: T.fontBody, fontSize: 12,
+          }}>
+            <span style={{ color: T.forest700 }}>♥ {shortlist.list.length} wine{shortlist.list.length > 1 ? 's' : ''} saved</span>
+            <button
+              onClick={() => setShowOnlySaved(v => !v)}
+              style={{ background: 'none', border: 'none', color: T.forest500, fontFamily: T.fontBody, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            >
+              {showOnlySaved ? 'Show all wines' : 'View shortlist →'}
+            </button>
+          </div>
+        )}
+
+        {/* Partial read warning */}
+        {showRetakePanel && (
+          <div style={{ padding: '14px 16px 0' }}>
+            <div style={{ border: `1px solid ${T.ochre500}50`, borderRadius: 14, background: T.ochre100, padding: '14px 16px' }}>
+              <div style={{ fontSize: 10, color: T.ochre500, fontFamily: T.fontBody, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 6 }}>Partial read</div>
+              <p style={{ fontFamily: T.fontDisplay, fontSize: 16, color: T.ink800, lineHeight: 1.4, margin: '0 0 10px' }}>
+                I read part of the list. A second photo will give you better matches.
+              </p>
+              {retakeReasons.length > 0 && (
+                <ul style={{ fontFamily: T.fontBody, color: T.ink500, fontSize: 12, lineHeight: 1.6, paddingLeft: 18, marginBottom: 12 }}>
+                  {retakeReasons.slice(0, 3).map(r => <li key={r}>{REASON_COPY[r] || r}</li>)}
+                </ul>
+              )}
+              <button
+                onClick={() => navigate('scanPrompt')}
+                style={{ width: '100%', border: 'none', borderRadius: 9999, background: T.forest500, color: 'white', padding: '10px 0', fontFamily: T.fontBody, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+              >
+                Try another photo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* No strong matches — honest banner */}
+        {noStrongMatches && !showRetakePanel && (
+          <div style={{ padding: '14px 16px 0' }}>
+            <div style={{ padding: '12px 14px', borderRadius: 12, border: `1px solid ${T.scarlet300}`, background: T.scarlet100, fontFamily: T.fontBody, fontSize: 13, color: T.ink700, lineHeight: 1.5 }}>
+              <strong style={{ fontWeight: 700, color: T.scarlet500 }}>No strong matches on this list.</strong>{' '}
+              Top match is {topMatch}/100. Here are the closest from what we found.
+            </div>
+          </div>
+        )}
+
+        {/* Low confidence warning */}
+        {showLowConfidenceWarning && (
+          <div style={{ padding: '8px 16px 0' }}>
+            <div style={{ padding: '10px 12px', borderRadius: 10, background: T.ochre100, border: `1px solid ${T.ochre500}55`, fontFamily: T.fontBody, fontSize: 12, color: T.ink700 }}>
+              Some labels were hard to read. Try a sharper photo for a more complete list.
+            </div>
+          </div>
+        )}
+
+        {/* Shortlist-only view */}
+        {showOnlySaved && (
+          <div style={{ padding: '14px 16px 80px' }}>
+            <div style={{ marginBottom: 10, fontFamily: T.fontBody, fontSize: 10, color: T.ink400, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Your shortlist</div>
+            {shortlist.list.length === 0
+              ? <p style={{ fontFamily: T.fontBody, color: T.ink400 }}>Nothing saved yet.</p>
+              : shortlist.list.map((wine, i) => (
+                  <WineRowCard key={wine.id ?? wine.name} wine={wine} rank={i} onTap={onWineSelect} onSave={() => shortlist.toggle(wine)} saved />
+                ))
+            }
+          </div>
+        )}
+
+        {/* Sort toggle + wine list */}
+        {!showOnlySaved && sortedWines.length > 0 && (
+          <div style={{ padding: '10px 16px 80px' }}>
+            <div style={{ marginBottom: 10 }}>
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} />
+            </div>
+            {sortedWines.map((wine, i) => (
+              <WineRowCard
+                key={wine.id ?? wine.name}
+                wine={wine}
+                rank={i}
+                onTap={onWineSelect}
+                onSave={() => shortlist.toggle(wine)}
+                saved={shortlist.isSaved(wine)}
+              />
+            ))}
+            {/* Hidden wines hint */}
+            <button style={{ width: '100%', padding: '12px 0', background: 'transparent', border: 'none', color: T.ink400, fontSize: 12, fontFamily: T.fontBody, cursor: 'pointer' }}>
+              Showing all {sortedWines.length} wines →
+            </button>
+          </div>
+        )}
+
+        {/* Empty filtered set */}
+        {scoredWines.length > 0 && filteredWines.length === 0 && (
+          <div style={{ padding: '0 16px 16px' }}>
+            <div style={{ padding: 14, borderRadius: 12, border: `1px solid ${T.ink150}`, background: T.ink50, fontFamily: T.fontBody, fontSize: 13, color: T.ink700 }}>
+              No wines match these filters.{' '}
+              <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ background: 'transparent', border: 'none', color: T.forest500, fontWeight: 700, cursor: 'pointer', padding: 0, fontFamily: T.fontBody }}>
+                Clear filters
+              </button>{' '}
+              to see your full list.
+            </div>
+          </div>
+        )}
+
+        {/* Empty scan state */}
+        {fromScan && baseWines.length === 0 && (
+          <div style={{ padding: 16 }}>
+            <p style={{ fontFamily: T.fontBody, color: T.ink400 }}>
+              I couldn't pick a match from that scan. Try another photo with the labels in clearer view.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <FilterSheet
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        filters={filters}
+        onApply={(next) => { setFilters(next); setFilterOpen(false) }}
+        facets={facets}
+        totalWines={scoredWines.length}
+      />
+
+      <BottomNav activeTab="scan" navigate={navigate} tasteProfile={tasteProfile} />
+    </div>
+  )
+}
