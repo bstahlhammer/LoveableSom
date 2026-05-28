@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { saveScroll, getScroll } from '../utils/scrollStore.js'
 import { useShortlist } from '../hooks/useShortlist.js'
 import T from '../theme/T.js'
@@ -46,15 +46,17 @@ function normalizeScanResult(scannedWines) {
 }
 
 function FitBar({ score, lowConfidence = false }) {
-  const tone = fitBarTone(score, T)
+  const safeScore = Number.isFinite(score) ? score : null
+  if (safeScore === null) return null
+  const tone = fitBarTone(safeScore, T)
   const barColor = lowConfidence ? `${tone}88` : tone
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{ flex: 1, height: 5, background: T.ink100, borderRadius: 3, position: 'relative' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${score}%`, background: barColor, borderRadius: 3 }} />
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${safeScore}%`, background: barColor, borderRadius: 3 }} />
       </div>
       <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 38, textAlign: 'right', fontFamily: T.fontBody }}>
-        {lowConfidence ? `~${score}` : score}
+        {lowConfidence ? `~${safeScore}` : safeScore}
       </span>
     </div>
   )
@@ -64,8 +66,66 @@ function getTag(score) {
   return getMatchTag(score, T)
 }
 
+function pillLabel(flags, hasFlavorData) {
+  if (!hasFlavorData)                              return 'No flavor data'
+  const q = flags.includes('quality')
+  const p = flags.includes('price')
+  const pr = flags.includes('profile')
+  if (q && p)   return 'Budget, lower rated'
+  if (q)        return 'Lower rated'
+  if (p)        return 'Budget wine'
+  if (pr)       return 'Rate more wines'
+  return 'Limited data'
+}
+
+function pillTooltip(flags, hasFlavorData) {
+  if (!hasFlavorData)
+    return 'We don\'t have flavor data for this wine, so the match is based on name and region only.'
+  if (flags.includes('profile') && !flags.includes('quality') && !flags.includes('price'))
+    return 'Rate wines you\'ve tried to sharpen your match scores — the more we know your taste, the more accurate this gets.'
+  return null
+}
+
+function ConfidencePill({ flags, wine }) {
+  const [open, setOpen] = useState(false)
+  if (!flags.length) return null
+
+  const hasFlavorData = wine?.body != null || wine?.tannin != null
+  const label   = pillLabel(flags, hasFlavorData)
+  const tooltip = pillTooltip(flags, hasFlavorData)
+
+  return (
+    <div style={{ display: 'inline-block' }} onClick={e => e.stopPropagation()}>
+      <span
+        onClick={tooltip ? () => setOpen(o => !o) : undefined}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 9999,
+          background: T.ochre100, color: T.ochre500,
+          letterSpacing: '0.06em', textTransform: 'uppercase',
+          fontFamily: T.fontBody,
+          cursor: tooltip ? 'pointer' : 'default',
+        }}
+      >
+        {label}
+        {tooltip && <span style={{ fontSize: 9, opacity: 0.7 }}>{open ? '▲' : '▼'}</span>}
+      </span>
+      {open && tooltip && (
+        <div style={{
+          marginTop: 6, padding: '8px 10px',
+          background: T.ink50, border: `1px solid ${T.ochre100}`,
+          borderRadius: 8, fontSize: 11, color: T.ink700,
+          fontFamily: T.fontBody, lineHeight: 1.5,
+        }}>
+          {tooltip}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function WineRowCard({ wine, rank, onTap, onSave, saved }) {
-  const score = wine.adjustedMatch ?? wine.computedMatch ?? wine.rating ?? 75
+  const score = [wine.adjustedMatch, wine.computedMatch, wine.rating, 75].find(v => Number.isFinite(v)) ?? 75
   const tag = getTag(score)
   const cardBg = score >= 70 ? 'white' : score >= 50 ? T.ink50 : 'oklch(98% 0.02 30)'
   const borderColor = score < 50 ? T.scarlet300 : T.ink150
@@ -104,6 +164,7 @@ function WineRowCard({ wine, rank, onTap, onSave, saved }) {
           <div style={{ fontSize: 11, color: T.ink400, marginTop: 2, fontFamily: T.fontBody }}>
             {[wine.grape, wine.region].filter(Boolean).join(' · ')}
           </div>
+          <NaturalBadge wine={wine} />
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
           {wine.price != null && (
@@ -118,11 +179,7 @@ function WineRowCard({ wine, rank, onTap, onSave, saved }) {
         </div>
       </div>
       <FitBar score={score} lowConfidence={wine.matchIsLow} />
-      {wine.matchIsLow && wine.matchReason && (
-        <div style={{ fontSize: 10, color: T.ochre500, fontFamily: T.fontBody, letterSpacing: '0.06em', marginTop: -4 }}>
-          ~ estimated · {wine.matchReason}
-        </div>
-      )}
+      {wine.matchIsLow && <ConfidencePill flags={wine.matchFlags ?? []} wine={wine} />}
       {wine.tasting && (
         <p style={{ fontSize: 12, color: T.ink500, margin: 0, lineHeight: 1.5, fontFamily: T.fontBody, fontStyle: 'italic' }}>
           {wine.tasting}
@@ -146,9 +203,12 @@ function defaultSortKey(buyingFor, scanIntent) {
   return 'match'
 }
 
-export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfile, buyingFor, scanIntent, scannedWines, onWineSelect, scanId, mealAppeal }) {
-  const [sortKey, setSortKey] = useState(() => defaultSortKey(buyingFor, scanIntent))
-  const [filters, setFilters] = useState(EMPTY_FILTERS)
+export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfile, buyingFor, scanIntent, scannedWines, onWineSelect, scanId, mealAppeal, persistedState, onPersistState }) {
+  const [sortKey, setSortKey] = useState(() => persistedState?.sortKey ?? defaultSortKey(buyingFor, scanIntent))
+  const [filters, setFilters] = useState(() => persistedState?.filters ?? EMPTY_FILTERS)
+
+  const setSortKeyAndPersist = useCallback(k => { setSortKey(k); onPersistState?.({ sortKey: k, filters }) }, [filters, onPersistState])
+  const setFiltersAndPersist = useCallback(f => { setFilters(f); onPersistState?.({ sortKey, filters: f }) }, [sortKey, onPersistState])
   const [filterOpen, setFilterOpen] = useState(false)
   const [showOnlySaved, setShowOnlySaved] = useState(false)
   const shortlist = useShortlist()
@@ -172,14 +232,16 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   const scoredWines = useMemo(() => {
     if (!tasteProfile) return baseWines
     return baseWines.map(w => {
-      const raw = w.computedMatch ?? computeMatch(w, tasteProfile)
-      const { score: adjusted, isLow, reason } = computeMatchWithConfidence({ ...w, computedMatch: raw }, tasteProfile)
+      const rawRaw = w.computedMatch ?? computeMatch(w, tasteProfile)
+      const raw = Number.isFinite(rawRaw) ? rawRaw : null
+      const { score: adjusted, isLow, reason, flags } = computeMatchWithConfidence({ ...w, computedMatch: raw ?? 50 }, tasteProfile)
       return {
         ...w,
-        computedMatch: raw,      // preserved for sort
-        adjustedMatch: adjusted,
+        computedMatch: raw,
+        adjustedMatch: Number.isFinite(adjusted) ? adjusted : null,
         matchIsLow: isLow,
         matchReason: reason,
+        matchFlags: flags,
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -235,6 +297,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         <p style={{ fontSize: 12, color: T.ink400, margin: 0, lineHeight: 1.45, fontFamily: T.fontBody }}>
           Ranked by taste fit
           {mealAppeal ? ` · matched to "${mealAppeal}"` : ''}
+          {scanIntent?.label ? ` · ${scanIntent.label}` : ''}
           {tasteProfile?.name ? ` · ${tasteProfile.name.replace(/^The\s+/i, '')}` : ''}
         </p>
       </div>
@@ -245,7 +308,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
           <FilterBar
             filters={filters}
             onOpen={() => setFilterOpen(true)}
-            onChange={setFilters}
+            onChange={setFiltersAndPersist}
             resultCount={filteredWines.length}
             totalCount={scoredWines.length}
           />
@@ -299,9 +362,21 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         {/* No strong matches — honest banner */}
         {noStrongMatches && !showRetakePanel && (
           <div style={{ padding: '14px 16px 0' }}>
-            <div style={{ padding: '12px 14px', borderRadius: 12, border: `1px solid ${T.scarlet300}`, background: T.scarlet100, fontFamily: T.fontBody, fontSize: 13, color: T.ink700, lineHeight: 1.5 }}>
-              <strong style={{ fontWeight: 700, color: T.scarlet500 }}>No strong matches on this list.</strong>{' '}
-              Top match is {topMatch}/100. Here are the closest from what we found.
+            <div style={{ padding: '12px 14px', borderRadius: 12, border: `1px solid ${T.scarlet300}`, background: T.scarlet100, fontFamily: T.fontBody, fontSize: 13, color: T.ink700, lineHeight: 1.5, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <strong style={{ fontWeight: 700, color: T.scarlet500 }}>Unfortunately, none of these wines will delight you.</strong>
+              {sortedWines.length > 0 && (
+                <button
+                  onClick={() => onWineSelect?.(sortedWines[0])}
+                  style={{
+                    background: T.scarlet500, color: 'white', border: 'none',
+                    borderRadius: 9999, padding: '10px 16px',
+                    fontFamily: T.fontBody, fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', textAlign: 'center',
+                  }}
+                >
+                  Of these, we think this is the best.
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -331,8 +406,21 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         {/* Sort toggle + wine list */}
         {!showOnlySaved && sortedWines.length > 0 && (
           <div style={{ padding: '10px 16px 80px' }}>
-            <div style={{ marginBottom: 10 }}>
-              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} />
+            <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
+            <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={setSortKeyAndPersist} />
+              <button
+                onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
+                style={{
+                  padding: '5px 12px', borderRadius: 9999, cursor: 'pointer',
+                  background: filters.natural ? T.forest100 : 'transparent',
+                  border: `1px solid ${filters.natural ? T.forest400 : T.ink200}`,
+                  color: filters.natural ? T.forest700 : T.ink500,
+                  fontFamily: T.fontBody, fontSize: 11, fontWeight: 600,
+                }}
+              >
+                🌿 Natural
+              </button>
             </div>
             {sortedWines.map((wine, i) => (
               <WineRowCard
@@ -356,7 +444,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
           <div style={{ padding: '0 16px 16px' }}>
             <div style={{ padding: 14, borderRadius: 12, border: `1px solid ${T.ink150}`, background: T.ink50, fontFamily: T.fontBody, fontSize: 13, color: T.ink700 }}>
               No wines match these filters.{' '}
-              <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ background: 'transparent', border: 'none', color: T.forest500, fontWeight: 700, cursor: 'pointer', padding: 0, fontFamily: T.fontBody }}>
+              <button onClick={() => setFiltersAndPersist(EMPTY_FILTERS)} style={{ background: 'transparent', border: 'none', color: T.forest500, fontWeight: 700, cursor: 'pointer', padding: 0, fontFamily: T.fontBody }}>
                 Clear filters
               </button>{' '}
               to see your full list.
@@ -378,12 +466,76 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
         filters={filters}
-        onApply={(next) => { setFilters(next); setFilterOpen(false) }}
+        onApply={(next) => { setFiltersAndPersist(next); setFilterOpen(false) }}
         facets={facets}
         totalWines={scoredWines.length}
       />
 
       <BottomNav activeTab="scan" navigate={navigate} tasteProfile={tasteProfile} />
+    </div>
+  )
+}
+
+function NaturalBadge({ wine }) {
+  const styles = Array.isArray(wine.wineStyle) ? wine.wineStyle : []
+  if (!styles.some(s => ['natural','skin-contact','orange-wine','pét-nat','biodynamic','amphora'].includes(s))) return null
+
+  let label = 'Natural'
+  let bg = T.forest100, color = T.forest700
+  if (styles.includes('pét-nat'))   { label = 'Pét-Nat';      bg = T.cobalt100; color = T.cobalt700 }
+  else if (styles.includes('skin-contact') || styles.includes('orange-wine'))
+                                     { label = 'Skin Contact'; bg = T.ochre100;  color = T.ochre700  }
+  else if (styles.includes('amphora'))  { label = 'Amphora';   bg = T.ochre100;  color = T.ochre700  }
+  else if (styles.includes('biodynamic')){ label = 'Biodynamic'; }
+
+  return (
+    <span style={{
+      display: 'inline-block', marginTop: 4,
+      fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 9999,
+      background: bg, color, fontFamily: T.fontBody, letterSpacing: '0.04em',
+    }}>
+      {label}
+    </span>
+  )
+}
+
+const COLOR_PILLS = [
+  { key: 'red',    label: 'Red',    activeBg: T.scarlet500, activeColor: 'white'       },
+  { key: 'white',  label: 'White',  activeBg: T.ink200,     activeColor: T.ink800      },
+  { key: 'rose',   label: 'Rosé',   activeBg: T.scarlet300, activeColor: T.scarlet700  },
+  { key: 'orange', label: 'Orange', activeBg: T.ochre400,   activeColor: T.forest700   },
+]
+
+function ColorQuickFilter({ facets, filters, onChange }) {
+  const available = facets?.colors ?? []
+  const visible = COLOR_PILLS.filter(p => available.includes(p.key))
+  if (visible.length === 0) return null
+  const active = filters?.colors ?? []
+  const toggle = (key) => {
+    const next = active.includes(key) ? active.filter(c => c !== key) : [...active, key]
+    onChange({ ...filters, colors: next })
+  }
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+      {visible.map(p => {
+        const on = active.includes(p.key)
+        return (
+          <button
+            key={p.key}
+            onClick={() => toggle(p.key)}
+            style={{
+              padding: '5px 14px', borderRadius: 9999, cursor: 'pointer',
+              background: on ? p.activeBg : 'transparent',
+              border: `1px solid ${on ? p.activeBg : T.ink200}`,
+              color: on ? p.activeColor : T.ink500,
+              fontFamily: T.fontBody, fontSize: 12, fontWeight: on ? 700 : 500,
+              transition: 'all 0.12s ease',
+            }}
+          >
+            {p.label}
+          </button>
+        )
+      })}
     </div>
   )
 }

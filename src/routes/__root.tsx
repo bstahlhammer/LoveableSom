@@ -1,6 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 
-import appCss from "../styles.css?url";
+import appCss from "../ui/styles.css?url";
 
 function NotFoundComponent() {
   return (
@@ -30,16 +30,33 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Uncork" },
-      { name: "description", content: "Scan a wine list and get instant recommendations" },
+      { name: "description", content: "Scan a wine list and discover wines you'll love" },
       { property: "og:title", content: "Uncork" },
-      { property: "og:description", content: "Scan a wine list and get instant recommendations" },
+      { property: "og:description", content: "Scan a wine list and discover wines you'll love" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
     links: [
       {
+        rel: "preconnect",
+        href: "https://fonts.googleapis.com",
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Outfit:wght@300;400;500;600;700&display=swap",
+      },
+      {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        type: "image/png",
+        href: "/favicon.png",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/apple-touch-icon.png",
       },
     ],
   }),

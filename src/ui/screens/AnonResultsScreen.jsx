@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import T from '../theme/T.js'
 import { sortWines, applyFilters, getFilterFacets, EMPTY_FILTERS, getWines } from '@/core/api'
 import { fitBarTone } from '../constants/matchThresholds.js'
@@ -73,6 +73,7 @@ function AnonWineRowCard({ wine, rank, onTap, onSave, saved }) {
           <div style={{ fontSize: 11, color: T.ink400, marginTop: 2, fontFamily: T.fontBody }}>
             {[wine.grape, wine.region].filter(Boolean).join(' · ')}
           </div>
+          <NaturalBadge wine={wine} />
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
           {wine.price != null && (
@@ -103,13 +104,17 @@ function defaultSortKey(buyingFor, scanIntent) {
   return 'crowd'  // default: crowd-pleaser works for group, 'me' without a profile, and everything else
 }
 
-export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tasteProfile, scannedWines, scanIntent, buyingFor, scanId }) {
+export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tasteProfile, scannedWines, scanIntent, buyingFor, scanId, persistedState, onPersistState }) {
   const hasProfile = !!tasteProfile
-  const [sortKey, setSortKey] = useState(() => defaultSortKey(buyingFor, scanIntent))
-  const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [sortKey, setSortKey] = useState(() => persistedState?.sortKey ?? defaultSortKey(buyingFor, scanIntent))
+  const [filters, setFilters] = useState(() => persistedState?.filters ?? EMPTY_FILTERS)
+
+  const setSortKeyAndPersist = useCallback(k => { setSortKey(k); onPersistState?.({ sortKey: k, filters }) }, [filters, onPersistState])
+  const setFiltersAndPersist = useCallback(f => { setFilters(f); onPersistState?.({ sortKey, filters: f }) }, [sortKey, onPersistState])
   const [filterOpen, setFilterOpen] = useState(false)
   const [showOnlySaved, setShowOnlySaved] = useState(false)
   const [showMatchPrompt, setShowMatchPrompt] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const shortlist = useShortlist()
   const scrollRef = useRef(null)
 
@@ -148,7 +153,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
       return
     }
     setShowMatchPrompt(false)
-    setSortKey(next)
+    setSortKeyAndPersist(next)
   }
 
   const sortedWines = useMemo(
@@ -180,7 +185,40 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
           <span style={{ fontSize: 11, color: T.ink400, fontFamily: T.fontBody }}>
             {noWines ? 'No wine identified' : `${allWines.length} wine${allWines.length !== 1 ? 's' : ''} found`}
           </span>
-          <button style={{ background: 'transparent', border: 'none', color: T.ink400, fontSize: 18, cursor: 'pointer', padding: 0, lineHeight: 1 }}>⋯</button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setMenuOpen(m => !m)}
+              style={{ background: 'transparent', border: 'none', color: T.ink400, fontSize: 18, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+            >⋯</button>
+            {menuOpen && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 19 }} onClick={() => setMenuOpen(false)} />
+                <div style={{
+                  position: 'absolute', top: 28, right: 0, zIndex: 20,
+                  background: 'white', borderRadius: 12, border: `1px solid ${T.ink150}`,
+                  boxShadow: '0 8px 30px rgba(0,0,0,0.14)',
+                  minWidth: 180, overflow: 'hidden',
+                }}>
+                  <button
+                    onClick={() => { setMenuOpen(false); navigate('scanPrompt') }}
+                    style={{
+                      display: 'block', width: '100%', padding: '13px 16px', textAlign: 'left',
+                      background: 'none', border: 'none', borderBottom: `1px solid ${T.ink100}`,
+                      fontFamily: T.fontBody, fontSize: 13, color: T.ink800, cursor: 'pointer',
+                    }}
+                  >📷  Scan again</button>
+                  <button
+                    onClick={() => { setMenuOpen(false); navigate('home') }}
+                    style={{
+                      display: 'block', width: '100%', padding: '13px 16px', textAlign: 'left',
+                      background: 'none', border: 'none',
+                      fontFamily: T.fontBody, fontSize: 13, color: T.ink800, cursor: 'pointer',
+                    }}
+                  >🏠  Go to home</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         <h1 style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 28, lineHeight: 1.1, margin: '0 0 6px', letterSpacing: '-0.01em', color: T.ink900 }}>
           {noWines
@@ -195,7 +233,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
             ? 'Take another photo to get a reliable result'
             : !scanAttempted
               ? 'Scores based on crowd & critic ratings'
-              : 'Sorted by crowd & critic score · tap any to explore'
+              : `Sorted by crowd & critic score${scanIntent?.label ? ` · ${scanIntent.label}` : ''} · tap any to explore`
           }
         </p>
       </div>
@@ -206,7 +244,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
           <FilterBar
             filters={filters}
             onOpen={() => setFilterOpen(true)}
-            onChange={setFilters}
+            onChange={setFiltersAndPersist}
             resultCount={filteredWines.length}
             totalCount={allWines.length}
           />
@@ -334,7 +372,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
           <div style={{ padding: '0 16px 16px' }}>
             <div style={{ padding: 14, borderRadius: 12, border: `1px solid ${T.ink150}`, background: T.ink50, fontFamily: T.fontBody, fontSize: 13, color: T.ink700 }}>
               No wines match these filters.{' '}
-              <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ background: 'transparent', border: 'none', color: T.forest500, fontWeight: 700, cursor: 'pointer', padding: 0, fontFamily: T.fontBody }}>
+              <button onClick={() => setFiltersAndPersist(EMPTY_FILTERS)} style={{ background: 'transparent', border: 'none', color: T.forest500, fontWeight: 700, cursor: 'pointer', padding: 0, fontFamily: T.fontBody }}>
                 Clear filters
               </button>{' '}
               to see your full list.
@@ -361,8 +399,21 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
         {/* Sort toggle + wine list */}
         {!showOnlySaved && sortedWines.length > 0 && (
           <div style={{ padding: '10px 16px 80px' }}>
-            <div style={{ marginBottom: 10 }}>
+            <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
+            <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <SortToggle options={sortOptions} value={sortKey} onChange={handleSortChange} />
+              <button
+                onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
+                style={{
+                  padding: '5px 12px', borderRadius: 9999, cursor: 'pointer',
+                  background: filters.natural ? T.forest100 : 'transparent',
+                  border: `1px solid ${filters.natural ? T.forest400 : T.ink200}`,
+                  color: filters.natural ? T.forest700 : T.ink500,
+                  fontFamily: T.fontBody, fontSize: 11, fontWeight: 600,
+                }}
+              >
+                🌿 Natural
+              </button>
             </div>
             {sortedWines.map((wine, i) => (
               <AnonWineRowCard
@@ -389,12 +440,76 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
         filters={filters}
-        onApply={(next) => { setFilters(next); setFilterOpen(false) }}
+        onApply={(next) => { setFiltersAndPersist(next); setFilterOpen(false) }}
         facets={facets}
         totalWines={allWines.length}
       />
 
       <BottomNav activeTab="scan" navigate={navigate} tasteProfile={tasteProfile} />
+    </div>
+  )
+}
+
+function NaturalBadge({ wine }) {
+  const styles = Array.isArray(wine.wineStyle) ? wine.wineStyle : []
+  if (!styles.some(s => ['natural','skin-contact','orange-wine','pét-nat','biodynamic','amphora'].includes(s))) return null
+
+  let label = 'Natural'
+  let bg = T.forest100, color = T.forest700
+  if (styles.includes('pét-nat'))   { label = 'Pét-Nat';      bg = T.cobalt100; color = T.cobalt700 }
+  else if (styles.includes('skin-contact') || styles.includes('orange-wine'))
+                                     { label = 'Skin Contact'; bg = T.ochre100;  color = T.ochre700  }
+  else if (styles.includes('amphora'))  { label = 'Amphora';   bg = T.ochre100;  color = T.ochre700  }
+  else if (styles.includes('biodynamic')){ label = 'Biodynamic'; }
+
+  return (
+    <span style={{
+      display: 'inline-block', marginTop: 4,
+      fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 9999,
+      background: bg, color, fontFamily: T.fontBody, letterSpacing: '0.04em',
+    }}>
+      {label}
+    </span>
+  )
+}
+
+const COLOR_PILLS = [
+  { key: 'red',    label: 'Red',    activeBg: T.scarlet500, activeColor: 'white'       },
+  { key: 'white',  label: 'White',  activeBg: T.ink200,     activeColor: T.ink800      },
+  { key: 'rose',   label: 'Rosé',   activeBg: T.scarlet300, activeColor: T.scarlet700  },
+  { key: 'orange', label: 'Orange', activeBg: T.ochre400,   activeColor: T.forest700   },
+]
+
+function ColorQuickFilter({ facets, filters, onChange }) {
+  const available = facets?.colors ?? []
+  const visible = COLOR_PILLS.filter(p => available.includes(p.key))
+  if (visible.length === 0) return null
+  const active = filters?.colors ?? []
+  const toggle = (key) => {
+    const next = active.includes(key) ? active.filter(c => c !== key) : [...active, key]
+    onChange({ ...filters, colors: next })
+  }
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+      {visible.map(p => {
+        const on = active.includes(p.key)
+        return (
+          <button
+            key={p.key}
+            onClick={() => toggle(p.key)}
+            style={{
+              padding: '5px 14px', borderRadius: 9999, cursor: 'pointer',
+              background: on ? p.activeBg : 'transparent',
+              border: `1px solid ${on ? p.activeBg : T.ink200}`,
+              color: on ? p.activeColor : T.ink500,
+              fontFamily: T.fontBody, fontSize: 12, fontWeight: on ? 700 : 500,
+              transition: 'all 0.12s ease',
+            }}
+          >
+            {p.label}
+          </button>
+        )
+      })}
     </div>
   )
 }

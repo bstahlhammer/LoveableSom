@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react'
 import { findWineImage, lookupWineCatalog } from '@/core/api'
 
+
+
 export function useScan() {
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState(null)
@@ -9,127 +11,84 @@ export function useScan() {
     setScanning(true)
     setError(null)
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 120_000) // 2 min max
+    const timeout = setTimeout(() => controller.abort(), 180_000)
     try {
       onProgress?.({ stage: 'preparing', message: 'Cutting the foil…' })
-      const base64 = await fileToDownscaledBase64(file).catch(async (err) => {
-        console.warn('downscale failed, falling back to raw upload', err)
-        return fileToBase64(file)
-      })
-      onProgress?.({ stage: 'uploading', message: 'Presenting the bottle…' })
 
-      const res = await fetch('/api/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType: file.type || 'image/jpeg' }),
-        signal: controller.signal,
-      })
+      const dataUrl = await readAsDataUrl(file)
+      const img = await loadImage(dataUrl)
+      const photoBase64 = resizeForSpotlight(img)
+      const tiles = splitImageIntoTiles(img)
 
-      if (!res.ok) {
-        const msg = await res.text().catch(() => 'Scan failed')
-        const parsed = safeJsonParse(msg)
-        if (parsed?.error) throw new Error(parsed.error)
-        throw new Error(msg || 'Scan failed')
+      onProgress?.({ stage: 'uploading', message: `Scanning ${tiles.length} sections…` })
+
+      const mimeType = file.type || 'image/jpeg'
+      let wineCount = 0
+      // Catalog lookups start as each wine streams in, pipelined with tile scanning.
+      // By the time all tiles complete, most lookups are already resolved.
+      const catalogCache = new Map() // normalizedName → Promise<catalog|null>
+
+      // All tiles scan in parallel — wall time ≈ slowest single tile, not N × tile
+      const tileResults = await Promise.allSettled(
+        tiles.map(tileBase64 => scanTile(tileBase64, mimeType, controller.signal, (wine) => {
+          wineCount++
+          onWine?.(wine, wineCount)
+          onProgress?.({ stage: 'wine', count: wineCount, message: `${wineCount} wine${wineCount === 1 ? '' : 's'} identified` })
+          const key = normalizeWineName(wine.name)
+          if (!catalogCache.has(key)) {
+            catalogCache.set(key, lookupWineCatalog(wine.name).catch(() => null))
+          }
+        }))
+      )
+
+      const allWines = []
+      let bestReadability = 'unreadable'
+      const retakeReasonSet = new Set()
+      let scanType = 'list'
+
+      for (const result of tileResults) {
+        if (result.status !== 'fulfilled') continue
+        const { wines: tw, readability, retakeReasons, scanType: tileType } = result.value
+        allWines.push(...tw)
+        if (readability === 'good') bestReadability = 'good'
+        else if (readability === 'partial' && bestReadability === 'unreadable') bestReadability = 'partial'
+        retakeReasons.forEach(r => retakeReasonSet.add(r))
+        if (tileType === 'shelf') scanType = 'shelf'
       }
 
-      onProgress?.({ stage: 'reading', message: 'Uncorking the image…' })
-
-      // Read the streaming response body and accumulate it.
-      // The server streams Anthropic tokens directly, keeping the Worker alive
-      // past Cloudflare's 30s wall-clock limit for non-streaming responses.
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let raw = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        raw += decoder.decode(value, { stream: true })
-      }
-      // Flush any remaining bytes
-      raw += decoder.decode()
-
-      if (safeJsonParse(raw.trim().split('\n').pop() || '')?.__stream_error__) {
-        throw new Error('Vision analysis failed')
-      }
-
-      const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-      let wines, readability, retakeReasons, message
-      try {
-        const parsed = JSON.parse(cleaned)
-        if (Array.isArray(parsed)) {
-          // Backwards-compat: old flat array response
-          wines = parsed.filter((w) => w?.name)
-          readability = 'good'
-          retakeReasons = []
-          message = ''
-        } else if (parsed && Array.isArray(parsed.wines)) {
-          // New structured response
-          wines = parsed.wines.filter((w) => w?.name)
-          readability = parsed.readability ?? 'good'
-          retakeReasons = Array.isArray(parsed.retakeReasons) ? parsed.retakeReasons : []
-          message = typeof parsed.message === 'string' ? parsed.message : ''
-        } else {
-          throw new Error('Unexpected response shape')
-        }
-      } catch {
-        const recovered = extractPartialArray(raw)
-        wines = recovered.filter((w) => w?.name)
-        readability = wines.length ? 'partial' : 'unreadable'
-        retakeReasons = []
-        message = ''
-      }
+      let wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name))
 
       if (!wines.length) {
-        throw new Error('I could not identify a specific wine. Try a closer, sharper photo where the full label or shelf tag is readable.')
+        throw new Error('I could not identify any wines. Try a closer photo with labels clearly visible.')
       }
 
-      wines.forEach((wine, index) => {
-        onWine?.(wine, index + 1)
-        onProgress?.({ stage: 'wine', count: index + 1, message: `${index + 1} wine${index + 1 === 1 ? '' : 's'} identified` })
-      })
-
-      // Enrich wines that are missing grape/region or were low-confidence reads.
-      // Use a tight timeout so a slow enrichment never holds up the UI.
-      const needsEnrich = wines.filter(
-        (w) => !w.grape || !w.region || (typeof w.confidence === 'number' && w.confidence < 75)
-      )
-      if (needsEnrich.length > 0) {
-        onProgress?.({ stage: 'enriching', message: 'Verifying varietals…' })
-        const enriched = await enrichWines(needsEnrich, controller.signal).catch(() => [])
-        if (enriched.length > 0) {
-          const byId = Object.fromEntries(enriched.map((e) => [e.id, e]))
-          wines = wines.map((w) => {
-            const e = byId[w.id]
-            if (!e) return w
-            return {
-              ...w,
-              grape:  e.grape  ?? w.grape,
-              region: e.region ?? w.region,
-            }
-          })
-        }
-      }
-
-      // Local image lookup (fast, from 50 curated wines)
       wines = wines.map(w => ({ ...w, imageUrl: w.imageUrl ?? findWineImage(w.name) }))
 
-      // Catalog enrichment: parallel Supabase lookup for imageUrl + _catalogId
-      // (enables lazy image fetch for wines not in the 50-wine local set)
+      onProgress?.({ stage: 'enriching', message: 'Matching your wines…' })
       const catalogResults = await Promise.allSettled(
-        wines.map(w => w.imageUrl ? Promise.resolve(null) : lookupWineCatalog(w.name))
+        wines.map(w => catalogCache.get(normalizeWineName(w.name)) ?? lookupWineCatalog(w.name))
       )
       wines = wines.map((w, i) => {
         const r = catalogResults[i]
         if (r.status !== 'fulfilled' || !r.value) return w
-        const cat = r.value
-        return {
-          ...w,
-          imageUrl:   w.imageUrl ?? cat.imageUrl,
-          _catalogId: cat._catalogId,
-        }
+        return mergeCatalogWine(w, r.value)
       })
 
-      return { wines, readability, retakeReasons, message }
+      // Drop edge fragments the catalog couldn't confirm
+      wines = wines.filter(w => !w.truncated || w._catalogId)
+
+      // Second dedup pass: if two tile reads resolved to the same catalog entry, keep the higher-confidence one
+      const byCatalogId = new Map()
+      for (const w of wines) {
+        if (!w._catalogId) continue
+        const existing = byCatalogId.get(w._catalogId)
+        if (!existing || (w.confidence ?? 0) > (existing.confidence ?? 0)) {
+          byCatalogId.set(w._catalogId, w)
+        }
+      }
+      wines = wines.filter(w => !w._catalogId || byCatalogId.get(w._catalogId) === w)
+
+      return { wines, readability: bestReadability, retakeReasons: [...retakeReasonSet], message: '', scanType, photoBase64 }
     } catch (e) {
       setError(e.message || 'Scan failed')
       throw e
@@ -142,30 +101,208 @@ export function useScan() {
   return { scanning, error, scanImage }
 }
 
-// Call the enrich endpoint to fill in grape/region for wines that Claude
-// couldn't read clearly from the image. Times out after 8s so it never
-// blocks the results screen from appearing.
-async function enrichWines(wines, signal) {
-  const payload = wines.map((w) => ({ id: w.id, name: w.name, vintage: w.vintage ?? null }))
-  const enrichSignal = (AbortSignal.any && AbortSignal.timeout)
-    ? AbortSignal.any([signal, AbortSignal.timeout(8_000)])
-    : signal
-  const res = await fetch('/api/enrich', {
+function mergeCatalogWine(scanned, cat) {
+  return {
+    ...cat,
+    price:           scanned.price      ?? cat.price,
+    priceNum:        scanned.priceNum   ?? cat.priceNum,
+    vintage:         scanned.vintage    ?? cat.vintage,
+    confidence:      scanned.confidence,
+    grape:           scanned.grape      ?? cat.grape,
+    region:          scanned.region     ?? cat.region,
+    scannedPrice:    scanned.price      ?? null,
+    scannedPriceNum: scanned.priceNum   ?? null,
+    catalogPrice:    cat.price          ?? null,
+    catalogPriceNum: cat.priceNum       ?? null,
+  }
+}
+
+// Split into 2×3 tiles (portrait) or 3×2 (landscape) with 25% overlap between tiles.
+// Overlap ensures labels near tile edges are fully captured in at least one tile.
+function splitImageIntoTiles(img) {
+  const W = img.width
+  const H = img.height
+  const isPortrait = H >= W
+  const COLS = isPortrait ? 2 : 3
+  const ROWS = isPortrait ? 3 : 2
+  const OVL = 0.25
+  const MAX_TILE_EDGE = 1500
+  const QUALITY = 0.82
+
+  // Tile size formula: tileW * [(1-OVL)*(COLS-1) + 1] = W
+  const tileW = W / ((1 - OVL) * (COLS - 1) + 1)
+  const tileH = H / ((1 - OVL) * (ROWS - 1) + 1)
+  const strideX = tileW * (1 - OVL)
+  const strideY = tileH * (1 - OVL)
+
+  const tiles = []
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const x = Math.round(col * strideX)
+      const y = Math.round(row * strideY)
+      const w = Math.min(Math.round(tileW), W - x)
+      const h = Math.min(Math.round(tileH), H - y)
+
+      const scale = Math.min(1, MAX_TILE_EDGE / Math.max(w, h))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(w * scale)
+      canvas.height = Math.round(h * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) continue
+      ctx.drawImage(img, x, y, w, h, 0, 0, canvas.width, canvas.height)
+      const dataUrl = canvas.toDataURL('image/jpeg', QUALITY)
+      const comma = dataUrl.indexOf(',')
+      if (comma >= 0) tiles.push(dataUrl.slice(comma + 1))
+    }
+  }
+  return tiles
+}
+
+// Scan one tile against the API, streaming individual wine objects as they arrive.
+async function scanTile(base64, mimeType, signal, onWine) {
+  const res = await fetch('/api/scan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ wines: payload }),
-    signal: enrichSignal,
+    body: JSON.stringify({ image: base64, mimeType }),
+    signal,
   })
-  if (!res.ok) throw new Error('enrich failed')
-  const data = await res.json()
-  return Array.isArray(data.enrichments) ? data.enrichments : []
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => 'Tile scan failed')
+    const parsed = safeJsonParse(msg)
+    throw new Error(parsed?.error ?? msg ?? 'Tile scan failed')
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  const parser = makeStreamingWineParser(onWine)
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    parser.push(decoder.decode(value, { stream: true }))
+  }
+  parser.push(decoder.decode())
+
+  const raw = parser.getBuffer()
+
+  if (safeJsonParse(raw.trim().split('\n').pop() || '')?.__stream_error__) {
+    throw new Error('Vision analysis failed on tile')
+  }
+
+  const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+  try {
+    const parsed = JSON.parse(cleaned)
+    if (Array.isArray(parsed)) {
+      return { wines: parsed.filter(w => w?.name), readability: 'good', retakeReasons: [] }
+    }
+    if (parsed && Array.isArray(parsed.wines)) {
+      return {
+        wines: parsed.wines.filter(w => w?.name),
+        readability: parsed.readability ?? 'good',
+        retakeReasons: Array.isArray(parsed.retakeReasons) ? parsed.retakeReasons : [],
+        scanType: parsed.scanType === 'shelf' ? 'shelf' : 'list',
+      }
+    }
+    throw new Error('Unexpected shape')
+  } catch {
+    const recovered = extractPartialArray(raw)
+    return {
+      wines: recovered.filter(w => w?.name),
+      readability: recovered.length ? 'partial' : 'unreadable',
+      retakeReasons: [],
+    }
+  }
+}
+
+// Merge wines from all tiles, keeping the highest-confidence copy of each unique wine.
+function deduplicateWines(wines) {
+  const seen = new Map()
+  for (const wine of wines) {
+    if (!wine?.name) continue
+    const key = normalizeWineName(wine.name)
+    const existing = seen.get(key)
+    if (!existing || (wine.confidence ?? 0) > (existing.confidence ?? 0)) {
+      seen.set(key, wine)
+    }
+  }
+  return Array.from(seen.values())
+}
+
+const GENERIC_VARIETAL_NAMES = new Set([
+  'pinot noir', 'pinot grigio', 'pinot gris', 'pinot blanc',
+  'cabernet sauvignon', 'cabernet franc', 'cabernet',
+  'chardonnay', 'merlot', 'sauvignon blanc', 'syrah', 'shiraz',
+  'zinfandel', 'riesling', 'malbec', 'grenache', 'tempranillo',
+  'sangiovese', 'nebbiolo', 'barbera', 'viognier', 'gewurztraminer',
+  'moscato', 'prosecco', 'champagne', 'rosé', 'rose',
+  'red blend', 'white blend', 'bordeaux blend', 'meritage',
+  'red wine', 'white wine', 'sparkling wine',
+])
+
+function isGenericVarietalName(name) {
+  const stripped = String(name)
+    .toLowerCase()
+    .replace(/\b\d{4}\b/g, '')
+    .replace(/[^a-zé\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return GENERIC_VARIETAL_NAMES.has(stripped)
+}
+
+function normalizeWineName(name) {
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 20)
+}
+
+// Detects complete wine JSON objects in a streaming response and fires the callback
+// as each one arrives. Tracks brace depth and string state to avoid false positives.
+function makeStreamingWineParser(onWine) {
+  let buffer = ''
+  let depth = 0
+  let inString = false
+  let escape = false
+  let objStart = -1
+
+  return {
+    push(chunk) {
+      const startPos = buffer.length
+      buffer += chunk
+
+      for (let i = startPos; i < buffer.length; i++) {
+        const ch = buffer[i]
+        if (escape) { escape = false; continue }
+        if (ch === '\\' && inString) { escape = true; continue }
+        if (ch === '"') { inString = !inString; continue }
+        if (inString) continue
+
+        if (ch === '{') {
+          if (depth === 1) objStart = i
+          depth++
+        } else if (ch === '}') {
+          depth--
+          if (depth === 1 && objStart !== -1) {
+            try {
+              const obj = JSON.parse(buffer.slice(objStart, i + 1))
+              if (obj.name) onWine(obj)
+            } catch {}
+            objStart = -1
+          }
+        }
+      }
+    },
+    getBuffer() { return buffer },
+  }
 }
 
 function safeJsonParse(value) {
   try { return JSON.parse(value) } catch { return null }
 }
 
-// Recover complete JSON objects from a truncated array string.
 function extractPartialArray(raw) {
   const start = raw.indexOf('[')
   if (start === -1) return []
@@ -194,41 +331,17 @@ function extractPartialArray(raw) {
   return results
 }
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    const timeout = setTimeout(() => { reader.abort(); reject(new Error('file_read_timeout')) }, 8000)
-    reader.onload = () => {
-      clearTimeout(timeout)
-      const result = reader.result || ''
-      const comma = String(result).indexOf(',')
-      resolve(comma >= 0 ? String(result).slice(comma + 1) : '')
-    }
-    reader.onerror = () => { clearTimeout(timeout); reject(reader.error || new Error('Could not read file')) }
-    reader.onabort = () => { clearTimeout(timeout); reject(new Error('file_read_aborted')) }
-    reader.readAsDataURL(file)
-  })
-}
-
-async function fileToDownscaledBase64(file) {
-  const MAX_EDGE = 2400
-  const QUALITY = 0.88
-  const dataUrl = await readAsDataUrl(file)
-  const img = await loadImage(dataUrl)
-  const { width, height } = img
-  if (!width || !height) throw new Error('image_decode_failed')
-  const scale = Math.min(1, MAX_EDGE / Math.max(width, height))
-  const w = Math.max(1, Math.round(width * scale))
-  const h = Math.max(1, Math.round(height * scale))
+function resizeForSpotlight(img, maxEdge = 1024, quality = 0.75) {
+  const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
   const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
+  canvas.width = Math.round(img.width * scale)
+  canvas.height = Math.round(img.height * scale)
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('canvas_unavailable')
-  ctx.drawImage(img, 0, 0, w, h)
-  const out = canvas.toDataURL('image/jpeg', QUALITY)
-  const comma = out.indexOf(',')
-  return comma >= 0 ? out.slice(comma + 1) : ''
+  if (!ctx) return null
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  const dataUrl = canvas.toDataURL('image/jpeg', quality)
+  const comma = dataUrl.indexOf(',')
+  return comma >= 0 ? dataUrl.slice(comma + 1) : null
 }
 
 function readAsDataUrl(file) {
