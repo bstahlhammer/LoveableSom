@@ -1,0 +1,218 @@
+/* ============================================================
+   Uncork -- Painted Bunting palette
+   Primary: forest green (wing). CTA: cobalt blue (head).
+   Accent: scarlet coral (chest). Highlights: ochre (beak).
+   Background: warm cream/parchment.
+   Fonts: Cormorant Garamond (display) + Outfit (UI)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+/* ── Raw Palette ──────────────────────────────────────────── */
+:root {
+  /* Forest green -- primary */
+  --forest-50:  oklch(96% 0.018 148);
+  --forest-100: oklch(92% 0.04  148);
+  --forest-300: oklch(68% 0.10  148);
+  --forest-400: oklch(54% 0.13  148);
+  --forest-500: oklch(42% 0.13  150);
+  --forest-600: oklch(50% 0.16  145);
+  --forest-700: oklch(32% 0.10  150);
+  --forest-800: oklch(20% 0.08  150);
+  --forest-900: oklch(12% 0.06  150);
+
+  /* Cobalt blue -- CTA / secondary */
+  --cobalt-50:  oklch(96% 0.022 260);
+  --cobalt-100: oklch(92% 0.05  258);
+  --cobalt-300: oklch(70% 0.14  258);
+  --cobalt-400: oklch(54% 0.18  260);
+  --cobalt-500: oklch(42% 0.18  262);
+  --cobalt-600: oklch(34% 0.17  262);
+  --cobalt-700: oklch(26% 0.14  262);
+  --cobalt-800: oklch(18% 0.10  262);
+  --cobalt-900: oklch(12% 0.07  262);
+
+  /* Scarlet coral -- vibrant accent */
+  --scarlet-100: oklch(94% 0.05 32);
+  --scarlet-300: oklch(78% 0.16 32);
+  --scarlet-400: oklch(70% 0.20 30);
+  --scarlet-500: oklch(60% 0.22 28);
+  --scarlet-600: oklch(50% 0.21 26);
+
+  /* Ochre -- value / highlight */
+  --ochre-100: oklch(94% 0.05 80);
+  --ochre-400: oklch(80% 0.14 78);
+  --ochre-500: oklch(74% 0.15 80);
+  --ochre-600: oklch(62% 0.14 76);
+
+  /* Ink -- warm cream to deep */
+  --ink-0:   oklch(98% 0.014 82);
+  --ink-50:  oklch(96% 0.020 82);
+  --ink-100: oklch(92% 0.022 78);
+  --ink-150: oklch(87% 0.022 75);
+  --ink-200: oklch(80% 0.020 70);
+  --ink-300: oklch(66% 0.016 60);
+  --ink-400: oklch(50% 0.020 80);
+  --ink-500: oklch(38% 0.022 90);
+  --ink-600: oklch(28% 0.022 100);
+  --ink-700: oklch(20% 0.020 110);
+  --ink-800: oklch(14% 0.018 120);
+  --ink-900: oklch(9%  0.016 130);
+  --ink-950: oklch(6%  0.012 140);
+
+  /* Legacy aliases -- keeps theme.js working without edits */
+  --wine-50:  var(--forest-50);
+  --wine-100: var(--forest-100);
+  --wine-200: var(--forest-100);
+  --wine-300: var(--forest-300);
+  --wine-400: var(--forest-400);
+  --wine-500: var(--forest-500);
+  --wine-600: var(--forest-600);
+  --wine-700: var(--forest-700);
+  --wine-800: var(--forest-800);
+  --wine-900: var(--forest-900);
+  --terra-100: var(--cobalt-100);
+  --terra-400: var(--cobalt-400);
+  --terra-500: var(--cobalt-500);
+  --terra-600: var(--cobalt-600);
+  --gold-50:  var(--ochre-100);
+  --gold-100: var(--ochre-100);
+  --gold-200: var(--ochre-100);
+  --gold-300: var(--ochre-400);
+  --gold-400: var(--ochre-400);
+  --gold-500: var(--ochre-500);
+  --gold-600: var(--ochre-600);
+  --gold-700: var(--ochre-600);
+  --gold-800: oklch(44% 0.10 76);
+  --gold-900: oklch(28% 0.07 74);
+  --violet-100: var(--cobalt-100);
+  --violet-400: var(--cobalt-400);
+  --violet-500: var(--cobalt-500);
+}
+
+/* ── Semantic Tokens -- Light Mode ───────────────────────── */
+:root,
+[data-theme="light"] {
+  --bg-base:    var(--ink-50);
+  --bg-surface: var(--ink-0);
+  --bg-raised:  var(--ink-100);
+  --bg-inset:   var(--ink-150);
+  --bg-overlay: oklch(9% 0.04 130 / 0.55);
+
+  --fg-1:   var(--ink-900);
+  --fg-2:   var(--ink-600);
+  --fg-3:   var(--ink-400);
+  --fg-inv: var(--ink-0);
+
+  --border:        oklch(80% 0.020 75 / 0.7);
+  --border-strong: oklch(60% 0.016 70 / 0.5);
+
+  /* Primary: forest green */
+  --color-primary:        var(--forest-500);
+  --color-primary-hover:  var(--forest-700);
+  --color-primary-subtle: var(--forest-50);
+
+  /* CTA: cobalt blue */
+  --color-cta:        var(--cobalt-500);
+  --color-cta-hover:  var(--cobalt-600);
+  --color-cta-subtle: var(--cobalt-50);
+
+  /* Value: ochre */
+  --color-value:        var(--ochre-500);
+  --color-value-subtle: var(--ochre-100);
+
+  /* Taste-fit / crowd: scarlet */
+  --color-taste:        var(--scarlet-500);
+  --color-taste-subtle: var(--scarlet-100);
+
+  --shadow-sm: 0 1px 3px oklch(20% 0.05 90 / 0.08), 0 1px 2px oklch(20% 0.05 90 / 0.05);
+  --shadow-md: 0 4px 12px oklch(20% 0.05 90 / 0.10), 0 2px 4px oklch(20% 0.05 90 / 0.06);
+  --shadow-lg: 0 12px 32px oklch(20% 0.05 90 / 0.12), 0 4px 8px oklch(20% 0.05 90 / 0.08);
+  --shadow-xl: 0 24px 56px oklch(20% 0.05 90 / 0.16), 0 8px 16px oklch(20% 0.05 90 / 0.10);
+}
+
+/* ── Semantic Tokens -- Dark Mode ────────────────────────── */
+[data-theme="dark"] {
+  --bg-base:    oklch(13% 0.06 150);
+  --bg-surface: oklch(17% 0.06 150);
+  --bg-raised:  oklch(22% 0.06 148);
+  --bg-inset:   oklch(10% 0.05 150);
+  --bg-overlay: oklch(8% 0.05 150 / 0.75);
+
+  --fg-1:   oklch(95% 0.014 80);
+  --fg-2:   oklch(72% 0.016 82);
+  --fg-3:   oklch(52% 0.016 80);
+  --fg-inv: oklch(13% 0.06 150);
+
+  --border:        oklch(30% 0.06 148 / 0.6);
+  --border-strong: oklch(45% 0.08 148 / 0.5);
+
+  --color-primary:        var(--forest-300);
+  --color-primary-hover:  oklch(80% 0.14 138);
+  --color-primary-subtle: oklch(18% 0.07 150);
+
+  --color-cta:        var(--cobalt-400);
+  --color-cta-hover:  var(--cobalt-300);
+  --color-cta-subtle: oklch(15% 0.07 262);
+
+  --color-value:        var(--ochre-400);
+  --color-value-subtle: oklch(16% 0.06 80);
+
+  --color-taste:        var(--scarlet-400);
+  --color-taste-subtle: oklch(16% 0.07 28);
+
+  --shadow-sm: 0 1px 3px oklch(4% 0.02 130 / 0.40);
+  --shadow-md: 0 4px 12px oklch(4% 0.02 130 / 0.50);
+  --shadow-lg: 0 12px 32px oklch(4% 0.02 130 / 0.60);
+  --shadow-xl: 0 24px 56px oklch(4% 0.02 130 / 0.70);
+}
+
+/* ── Spacing ──────────────────────────────────────────────── */
+:root {
+  --space-1:  4px;   --space-2:  8px;   --space-3:  12px;
+  --space-4:  16px;  --space-5:  20px;  --space-6:  24px;
+  --space-8:  32px;  --space-10: 40px;  --space-12: 48px;
+  --space-16: 64px;  --space-20: 80px;  --space-24: 96px;
+}
+
+/* ── Radius ───────────────────────────────────────────────── */
+:root {
+  --radius-sm:   8px;   --radius-md:  16px;  --radius-lg:  24px;
+  --radius-xl:  32px;   --radius-2xl: 40px;  --radius-full: 9999px;
+}
+
+/* ── Typography ───────────────────────────────────────────── */
+:root {
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body:    'Outfit', system-ui, sans-serif;
+
+  --text-xs:   11px;  --text-sm:   13px;  --text-base: 15px;
+  --text-md:   17px;  --text-lg:   20px;  --text-xl:   24px;
+  --text-2xl:  30px;  --text-3xl:  38px;  --text-4xl:  48px;
+  --text-5xl:  62px;  --text-6xl:  80px;
+
+  --leading-tight:  1.15;  --leading-snug:  1.3;
+  --leading-normal: 1.5;   --leading-loose: 1.7;
+
+  --tracking-tight:   -0.02em;  --tracking-normal: 0em;
+  --tracking-wide:     0.05em;  --tracking-wider:  0.10em;
+  --tracking-widest:   0.15em;
+
+  --ease-out-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast:   120ms;
+  --duration-base:   220ms;
+  --duration-slow:   380ms;
+}
+
+/* ── Base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--fg-1);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  text-wrap: pretty;
+}

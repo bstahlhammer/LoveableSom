@@ -1,62 +1,114 @@
+/**
+ * MySom design-system theme bridge.
+ *
+ * Every value points at a CSS variable defined in `tokens.css`.
+ * Light/dark mode auto-switches via [data-theme="dark"] on <html>.
+ */
+
 export const theme = {
   colors: {
-    brand:      '#6B1A2A',
-    brandDark:  '#3D0C16',
-    gold:       '#C9922A',
-    cream:      '#FAF3E8',
-    text:       '#1A1A1A',
-    textMuted:  '#7A6C63',
-    surface:    '#FFFFFF',
-    border:     '#E8DDD4',
-    success:    '#2D6A2D',
-    warning:    '#854F0B',
-    crowd:      '#4A3580',
-    matchHigh:  '#2D6A2D',
-    matchMid:   '#854F0B',
-    matchLow:   '#A32D2D',
-    // badge backgrounds
-    crowdBg:    '#EDE8F7',
-    valueBg:    '#FFF3DC',
-    bestMatchBg:'#E8F5E8',
-    criticBg:   '#6B1A2A',
-    // dot empty
-    dotEmpty:   '#E0D4C8',
-    // score bar track
-    barTrack:   '#F0E8E0',
+    // Primary brand: wine red
+    brand:        'var(--color-primary)',
+    brandDark:    'var(--wine-700)',
+    brandDeep:    'var(--wine-800)',
+
+    // Red spectrum
+    crimson:      'var(--wine-400)',
+    crimsonSoft:  'var(--wine-100)',
+
+    // Warm accent (terra/ember)
+    ember:        'var(--terra-500)',
+    emberBright:  'var(--terra-400)',
+    peach:        'var(--terra-100)',
+
+    // Gold / value
+    gold:         'var(--color-value)',
+    goldBright:   'var(--gold-400)',
+
+    // Taste-fit: violet (replaces old purple/berry/magenta)
+    crowd:        'var(--color-taste)',
+    berry:        'var(--violet-500)',
+    magenta:      'var(--wine-300)',
+    magentaBright:'var(--wine-200)',
+
+    // Cool tones (mapped to ink/violet — no true teal in the palette)
+    teal:         'var(--violet-400)',
+    tealDeep:     'var(--violet-500)',
+    tide:         'var(--ink-300)',
+
+    // Backgrounds
+    cream:        'var(--ink-50)',
+    parchment:    'var(--bg-base)',
+    surface:      'var(--bg-surface)',
+    surfaceAlt:   'var(--bg-raised)',
+
+    // Foreground
+    text:         'var(--fg-1)',
+    textMuted:    'var(--fg-2)',
+    textOnDark:   'var(--fg-inv)',
+
+    // Borders & tracks
+    border:       'var(--border)',
+    dotEmpty:     'var(--ink-200)',
+    barTrack:     'var(--bg-raised)',
+
+    // Status
+    success:      'var(--wine-600)',
+    warning:      'var(--gold-700)',
+
+    // Match scores
+    matchHigh:    'var(--color-primary)',
+    matchMid:     'var(--color-value)',
+    matchLow:     'var(--ink-300)',
+
+    // Badge backgrounds
+    crowdBg:      'var(--color-taste-subtle)',
+    valueBg:      'var(--color-value-subtle)',
+    bestMatchBg:  'var(--color-primary-subtle)',
+    criticBg:     'var(--color-primary)',
   },
+
   typography: {
-    fontSerif: "Georgia, 'Times New Roman', serif",
-    fontSans:  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontDisplay: "var(--font-display)",   // Cormorant Garamond — wine names, hero text
+    fontLogo:    "var(--font-display)",   // same editorial face for the wordmark
+    fontSerif:   "var(--font-display)",
+    fontSans:    "var(--font-body)",      // Outfit — all UI text
+
     sizes: {
-      xs:   '11px',
-      sm:   '12px',
-      md:   '14px',
-      lg:   '16px',
-      xl:   '20px',
-      xxl:  '24px',
-      xxxl: '32px',
+      xs:   'var(--text-xs)',    // 11
+      sm:   'var(--text-sm)',    // 13
+      md:   'var(--text-base)',  // 15
+      lg:   'var(--text-md)',    // 17
+      xl:   'var(--text-lg)',    // 20
+      xxl:  'var(--text-xl)',    // 24
+      xxxl: 'var(--text-3xl)',   // 38
     },
+
     weights: {
       normal: 400,
       medium: 500,
     },
   },
+
   spacing: {
-    xs:  '4px',
-    sm:  '8px',
-    md:  '12px',
-    lg:  '16px',
-    xl:  '24px',
-    xxl: '32px',
+    xs:  'var(--space-1)',   // 4
+    sm:  'var(--space-2)',   // 8
+    md:  'var(--space-3)',   // 12
+    lg:  'var(--space-4)',   // 16
+    xl:  'var(--space-6)',   // 24
+    xxl: 'var(--space-8)',   // 32
   },
+
   radius: {
-    sm:   '6px',
-    md:   '12px',
-    lg:   '20px',
-    pill: '100px',
+    sm:   'var(--radius-sm)',
+    md:   'var(--radius-md)',
+    lg:   'var(--radius-lg)',
+    pill: 'var(--radius-full)',
   },
+
   shadows: {
-    card:     '0 1px 3px rgba(0,0,0,0.08)',
-    elevated: '0 4px 16px rgba(0,0,0,0.12)',
+    card:     'var(--shadow-sm)',
+    elevated: 'var(--shadow-md)',
+    brass:    '0 4px 12px oklch(42% .10 70 / 0.25)',
   },
 }
