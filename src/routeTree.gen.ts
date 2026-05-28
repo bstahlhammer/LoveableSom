@@ -9,12 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as BirdsRouteImport } from './routes/birds'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiWineImageRouteImport } from './routes/api/wine-image'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
+import { Route as ApiLocateBottleRouteImport } from './routes/api/locate-bottle'
+import { Route as ApiLabelRequestRouteImport } from './routes/api/label-request'
+import { Route as ApiFindWineRouteImport } from './routes/api/find-wine'
+import { Route as ApiEnrichRouteImport } from './routes/api/enrich'
+import { Route as ApiDescribePalateRouteImport } from './routes/api/describe-palate'
 
+const BirdsRoute = BirdsRouteImport.update({
+  id: '/birds',
+  path: '/birds',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWineImageRoute = ApiWineImageRouteImport.update({
+  id: '/api/wine-image',
+  path: '/api/wine-image',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiScanRoute = ApiScanRouteImport.update({
@@ -22,40 +45,149 @@ const ApiScanRoute = ApiScanRouteImport.update({
   path: '/api/scan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiLocateBottleRoute = ApiLocateBottleRouteImport.update({
+  id: '/api/locate-bottle',
+  path: '/api/locate-bottle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLabelRequestRoute = ApiLabelRequestRouteImport.update({
+  id: '/api/label-request',
+  path: '/api/label-request',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFindWineRoute = ApiFindWineRouteImport.update({
+  id: '/api/find-wine',
+  path: '/api/find-wine',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEnrichRoute = ApiEnrichRouteImport.update({
+  id: '/api/enrich',
+  path: '/api/enrich',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDescribePalateRoute = ApiDescribePalateRouteImport.update({
+  id: '/api/describe-palate',
+  path: '/api/describe-palate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/birds': typeof BirdsRoute
+  '/api/describe-palate': typeof ApiDescribePalateRoute
+  '/api/enrich': typeof ApiEnrichRoute
+  '/api/find-wine': typeof ApiFindWineRoute
+  '/api/label-request': typeof ApiLabelRequestRoute
+  '/api/locate-bottle': typeof ApiLocateBottleRoute
   '/api/scan': typeof ApiScanRoute
+  '/api/wine-image': typeof ApiWineImageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/birds': typeof BirdsRoute
+  '/api/describe-palate': typeof ApiDescribePalateRoute
+  '/api/enrich': typeof ApiEnrichRoute
+  '/api/find-wine': typeof ApiFindWineRoute
+  '/api/label-request': typeof ApiLabelRequestRoute
+  '/api/locate-bottle': typeof ApiLocateBottleRoute
   '/api/scan': typeof ApiScanRoute
+  '/api/wine-image': typeof ApiWineImageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/birds': typeof BirdsRoute
+  '/api/describe-palate': typeof ApiDescribePalateRoute
+  '/api/enrich': typeof ApiEnrichRoute
+  '/api/find-wine': typeof ApiFindWineRoute
+  '/api/label-request': typeof ApiLabelRequestRoute
+  '/api/locate-bottle': typeof ApiLocateBottleRoute
   '/api/scan': typeof ApiScanRoute
+  '/api/wine-image': typeof ApiWineImageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/scan'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/birds'
+    | '/api/describe-palate'
+    | '/api/enrich'
+    | '/api/find-wine'
+    | '/api/label-request'
+    | '/api/locate-bottle'
+    | '/api/scan'
+    | '/api/wine-image'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/scan'
-  id: '__root__' | '/' | '/api/scan'
+  to:
+    | '/'
+    | '/admin'
+    | '/birds'
+    | '/api/describe-palate'
+    | '/api/enrich'
+    | '/api/find-wine'
+    | '/api/label-request'
+    | '/api/locate-bottle'
+    | '/api/scan'
+    | '/api/wine-image'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/birds'
+    | '/api/describe-palate'
+    | '/api/enrich'
+    | '/api/find-wine'
+    | '/api/label-request'
+    | '/api/locate-bottle'
+    | '/api/scan'
+    | '/api/wine-image'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  BirdsRoute: typeof BirdsRoute
+  ApiDescribePalateRoute: typeof ApiDescribePalateRoute
+  ApiEnrichRoute: typeof ApiEnrichRoute
+  ApiFindWineRoute: typeof ApiFindWineRoute
+  ApiLabelRequestRoute: typeof ApiLabelRequestRoute
+  ApiLocateBottleRoute: typeof ApiLocateBottleRoute
   ApiScanRoute: typeof ApiScanRoute
+  ApiWineImageRoute: typeof ApiWineImageRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/birds': {
+      id: '/birds'
+      path: '/birds'
+      fullPath: '/birds'
+      preLoaderRoute: typeof BirdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/wine-image': {
+      id: '/api/wine-image'
+      path: '/api/wine-image'
+      fullPath: '/api/wine-image'
+      preLoaderRoute: typeof ApiWineImageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/scan': {
@@ -65,12 +197,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiScanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/locate-bottle': {
+      id: '/api/locate-bottle'
+      path: '/api/locate-bottle'
+      fullPath: '/api/locate-bottle'
+      preLoaderRoute: typeof ApiLocateBottleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/label-request': {
+      id: '/api/label-request'
+      path: '/api/label-request'
+      fullPath: '/api/label-request'
+      preLoaderRoute: typeof ApiLabelRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/find-wine': {
+      id: '/api/find-wine'
+      path: '/api/find-wine'
+      fullPath: '/api/find-wine'
+      preLoaderRoute: typeof ApiFindWineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/enrich': {
+      id: '/api/enrich'
+      path: '/api/enrich'
+      fullPath: '/api/enrich'
+      preLoaderRoute: typeof ApiEnrichRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/describe-palate': {
+      id: '/api/describe-palate'
+      path: '/api/describe-palate'
+      fullPath: '/api/describe-palate'
+      preLoaderRoute: typeof ApiDescribePalateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  BirdsRoute: BirdsRoute,
+  ApiDescribePalateRoute: ApiDescribePalateRoute,
+  ApiEnrichRoute: ApiEnrichRoute,
+  ApiFindWineRoute: ApiFindWineRoute,
+  ApiLabelRequestRoute: ApiLabelRequestRoute,
+  ApiLocateBottleRoute: ApiLocateBottleRoute,
   ApiScanRoute: ApiScanRoute,
+  ApiWineImageRoute: ApiWineImageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

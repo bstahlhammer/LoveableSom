@@ -4,4 +4,8 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
+  "triggers": {
+    // 7:00 UTC = midnight MT / 3am ET — runs after the previous day's CSE quota resets
+    "crons": ["0 7 * * *"]
+  },
 }
