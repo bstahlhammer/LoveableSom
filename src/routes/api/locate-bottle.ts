@@ -113,7 +113,7 @@ export const Route = createFileRoute('/api/locate-bottle')({
 
           const result = toolUse.input as any
 
-          if (!result.found || (typeof result.confidence === 'number' && result.confidence < 60)) {
+          if (!result.found || (typeof result.confidence === 'number' && result.confidence < 40)) {
             return Response.json({ found: false, bbox: null })
           }
 

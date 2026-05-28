@@ -120,7 +120,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
   const [lazyImageUrl, setLazyImageUrl] = useState(null)
   const [labelRequested, setLabelRequested] = useState(false)
   const [spotlight, setSpotlight] = useState(null)
-  const [spotlightLoading, setSpotlightLoading] = useState(false)
+  const [spotlightLoading, setSpotlightLoading] = useState(true)
 
   const { user } = useAuth()
 
@@ -135,9 +135,19 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
     }
   }, [wine?._catalogId, wine?.id, wine?.name])
 
+  function retrySpotlight() {
+    const hasPhoto = activeScan?.photoBase64 || activeScan?.photoUrl
+    if (!hasPhoto || !wine?.name) return
+    setSpotlight(null)
+    setSpotlightLoading(true)
+    locateBottleInScan({ photoUrl: activeScan.photoUrl, photoBase64: activeScan.photoBase64, wineName: wine.name, vintage: wine.vintage, region: wine.region, grape: wine.grape })
+      .then(result => setSpotlight(result))
+      .finally(() => setSpotlightLoading(false))
+  }
+
   useEffect(() => {
     const hasPhoto = activeScan?.photoBase64 || activeScan?.photoUrl
-    if (!hasPhoto || !wine?.name) { setSpotlight(null); return }
+    if (!hasPhoto || !wine?.name) { setSpotlight(null); setSpotlightLoading(false); return }
     let cancelled = false
     setSpotlight(null)
     setSpotlightLoading(true)
@@ -586,15 +596,16 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           </a>
         </div>
 
-        {/* Shelf spotlight — only for confirmed shelf scans, hidden if bottle not found */}
-        {(activeScan?.photoBase64 || activeScan?.photoUrl) && activeScan?.scanType === 'shelf' && spotlight?.found !== false && (
+        {/* Shelf spotlight — only for confirmed shelf scans */}
+        {(activeScan?.photoBase64 || activeScan?.photoUrl) && activeScan?.scanType === 'shelf' && (
           <div style={{ marginBottom: 16 }}>
             <SectionLabel>Find it on the shelf</SectionLabel>
             <ShelfSpotlight
               photoUrl={activeScan.photoBase64 ? `data:image/jpeg;base64,${activeScan.photoBase64}` : activeScan.photoUrl}
               bbox={spotlight?.found ? spotlight.bbox : null}
               loading={spotlightLoading}
-              error={null}
+              error={spotlight?.found === false ? true : null}
+              onRetry={retrySpotlight}
               label={wine.name}
             />
           </div>
