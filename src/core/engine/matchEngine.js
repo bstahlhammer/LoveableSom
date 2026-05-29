@@ -39,8 +39,8 @@ export function computeMatch(wine, tasteProfile) {
     Math.abs(wine.sweetness - p.sweetness) * 1 +
     Math.abs(wine.acidity   - p.acidity)   * 1
 
-  const maxDist = 600
-  let structuralScore = Math.round(100 - (dist / maxDist) * 100)
+  const maxDist = 300
+  let structuralScore = Math.max(0, Math.round(100 - (dist / maxDist) * 100))
 
   // Character blending — only when user has expressed character preferences
   const charProfile = tasteProfile.character
@@ -368,4 +368,22 @@ export function explainMismatch(wine, tasteProfile) {
     reasons: divergences.slice(0, 3),
     severity,
   }
+}
+
+// Maps raw Wine Enthusiast points (80–100) to a 0–100 quality score.
+// 80→0, 84→20, 85→25, 89→45, 90→50, 94→70, 95→75, 100→100
+// Returns 50 (unknown/neutral) when points is null/undefined.
+export function pointsToQualityScore(points) {
+  if (points == null) return 50
+  return Math.max(0, Math.min(100, (points - 80) * 5))
+}
+
+// Classifies a wine as 'confident', 'closest', or 'stretch' based on both signals.
+// confidenceLevel appears as a "Closest Available" pill in TwoSignalBars.
+export function getConfidenceLevel(tasteFit, wePoints, tasteFitThreshold = 82, qualityWEThreshold = 90) {
+  const goodFit     = typeof tasteFit === 'number' && tasteFit >= tasteFitThreshold
+  const goodQuality = typeof wePoints === 'number' && wePoints >= qualityWEThreshold
+  if (goodFit && goodQuality) return 'confident'
+  if (!goodFit && !goodQuality) return 'stretch'
+  return 'closest'
 }

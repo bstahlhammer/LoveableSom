@@ -257,13 +257,10 @@ export async function getCatalogPage({ page = 0, pageSize = 40, country, variety
 
 function _ratingLabel(points) {
   if (!points) return null
-  if (points >= 96) return 'Extraordinary'
-  if (points >= 94) return 'Outstanding'
-  if (points >= 92) return 'Highly rated'
-  if (points >= 90) return 'Excellent'
-  if (points >= 88) return 'Widely praised'
-  if (points >= 85) return 'Popular pick'
-  return null
+  if (points >= 95) return 'Well above average'
+  if (points >= 90) return 'Above average'
+  if (points >= 85) return 'Below average'
+  return 'Well below average'
 }
 
 function _catalogToWine(row) {

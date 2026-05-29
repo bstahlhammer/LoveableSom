@@ -7,7 +7,8 @@ import SortToggle from '../components/SortToggle.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import FilterBar from '../components/FilterBar.jsx'
 import FilterSheet from '../components/FilterSheet.jsx'
-import { fitBarTone, getMatchTag } from '../constants/matchThresholds.js'
+import { getMatchTag } from '../constants/matchThresholds.js'
+import TwoSignalBars from '../components/TwoSignalBars.jsx'
 
 const SORT_OPTIONS = [
   { value: 'match',           label: 'Best Match' },
@@ -43,23 +44,6 @@ function normalizeScanResult(scannedWines) {
     }
   }
   return null
-}
-
-function FitBar({ score, lowConfidence = false }) {
-  const safeScore = Number.isFinite(score) ? score : null
-  if (safeScore === null) return null
-  const tone = fitBarTone(safeScore, T)
-  const barColor = lowConfidence ? `${tone}88` : tone
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ flex: 1, height: 5, background: T.ink100, borderRadius: 3, position: 'relative' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${safeScore}%`, background: barColor, borderRadius: 3 }} />
-      </div>
-      <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 38, textAlign: 'right', fontFamily: T.fontBody }}>
-        {lowConfidence ? `~${safeScore}` : safeScore}
-      </span>
-    </div>
-  )
 }
 
 function getTag(score) {
@@ -178,7 +162,7 @@ function WineRowCard({ wine, rank, onTap, onSave, saved }) {
           </button>
         </div>
       </div>
-      <FitBar score={score} lowConfidence={wine.matchIsLow} />
+      <TwoSignalBars tasteFit={score} wePoints={wine.rating ?? null} />
       {wine.matchIsLow && <ConfidencePill flags={wine.matchFlags ?? []} wine={wine} />}
       {wine.tasting && (
         <p style={{ fontSize: 12, color: T.ink500, margin: 0, lineHeight: 1.5, fontFamily: T.fontBody, fontStyle: 'italic' }}>

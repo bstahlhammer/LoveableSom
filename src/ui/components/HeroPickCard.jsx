@@ -1,4 +1,6 @@
 import { theme } from '../theme/theme.js'
+import TwoSignalBars from './TwoSignalBars.jsx'
+import { getConfidenceLevel } from '@/core/engine/matchEngine.js'
 
 const ROLE_META = {
   topPick: {
@@ -49,10 +51,8 @@ export default function HeroPickCard({ role, wine, reasoning, ctaLabel, onCta, o
   const subline = [wine.vintage, wine.region, wine.grape, priceStr].filter(v => v && String(v).trim() !== '').join(' · ')
 
   const hasScore = typeof matchScore === 'number'
-  const scoreColor =
-    matchScore >= 80 ? theme.colors.matchHigh :
-    matchScore >= 50 ? theme.colors.matchMid :
-                       theme.colors.matchLow
+  const wePoints = wine.rating ?? null
+  const confidenceLevel = hasScore ? getConfidenceLevel(matchScore, wePoints) : null
 
   const topMismatch = mismatch?.reasons?.[0]
   const showHonestTake = topMismatch && mismatch.severity !== 'none'
@@ -99,31 +99,6 @@ export default function HeroPickCard({ role, wine, reasoning, ctaLabel, onCta, o
           {meta.label}
         </div>
 
-        {hasScore && (
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-            <span style={{
-              fontFamily: theme.typography.fontSans,
-              fontSize: 26,
-              fontWeight: 700,
-              color: scoreColor,
-              lineHeight: 1,
-              letterSpacing: '-0.02em',
-            }}>
-              {matchScore}
-            </span>
-            <span style={{
-              fontFamily: theme.typography.fontSans,
-              fontSize: 9,
-              fontWeight: 700,
-              color: scoreColor,
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              opacity: 0.85,
-            }}>
-              Match
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Body: left image + right content */}
@@ -241,6 +216,12 @@ export default function HeroPickCard({ role, wine, reasoning, ctaLabel, onCta, o
               }}>
                 {topMismatch.text}
               </div>
+            </div>
+          )}
+
+          {hasScore && (
+            <div style={{ paddingTop: 8, borderTop: `1px solid ${theme.colors.border}` }}>
+              <TwoSignalBars tasteFit={matchScore} wePoints={wePoints} confidenceLevel={confidenceLevel} />
             </div>
           )}
 
