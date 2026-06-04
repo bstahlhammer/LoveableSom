@@ -384,6 +384,7 @@ export default function App() {
                   buyingFor,
                   place: place || undefined,
                   locationLabel: place?.name,
+                  scanType,
                 })
                 if (scan) {
                   const photoUrl = scan.photo_path ? await getPhotoUrl(scan.photo_path) : null
@@ -492,7 +493,7 @@ export default function App() {
                 setScannedWines({ wines, readability: 'good', retakeReasons: [], message: '' })
                 setHasScanned(true)
                 const photoUrl = scanRow.photo_path ? await getPhotoUrl(scanRow.photo_path) : null
-                setActiveScan({ scanId: scanRow.id, photoUrl })
+                setActiveScan({ scanId: scanRow.id, photoUrl, scanType: scanRow.scan_type ?? 'list' })
                 navigate(tasteProfile ? 'personalizedResults' : 'anonResults')
               }
             }}

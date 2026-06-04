@@ -520,6 +520,27 @@ export default function HomeScreen({ navigate, auth, tasteProfile, hasActiveSess
       {/* hero */}
       <div style={{ position: 'relative', textAlign: 'center', marginTop: 16, zIndex: 1 }}>
         <Monogram />
+        <div style={{ marginTop: 20 }}>
+          <div style={{
+            fontFamily: T.fontDisplay,
+            fontSize: 58,
+            fontWeight: 600,
+            color: T.ink900,
+            lineHeight: 1,
+            letterSpacing: '-0.01em',
+          }}>
+            Uncork
+          </div>
+          <div style={{
+            fontFamily: T.fontBody,
+            fontSize: 17,
+            color: T.ink400,
+            marginTop: 6,
+            letterSpacing: '0.04em',
+          }}>
+            the world of wine
+          </div>
+        </div>
       </div>
 
       {user ? (

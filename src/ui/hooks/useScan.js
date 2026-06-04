@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { findWineImage, lookupWineCatalog } from '@/core/api'
+import { findWineImage, lookupWineCatalog, findWineOnWeb } from '@/core/api'
 
 
 
@@ -76,6 +76,38 @@ export function useScan() {
 
       // Drop edge fragments the catalog couldn't confirm
       wines = wines.filter(w => !w.truncated || w._catalogId)
+
+      // AI enrichment pass: for wines the catalog didn't recognize, call /api/find-wine.
+      // Runs up to 5 concurrent requests so common brands resolve before results show.
+      const needsEnrich = wines.filter(w => w.body == null && w.name && w.name.length > 4)
+      if (needsEnrich.length > 0) {
+        onProgress?.({ stage: 'enriching', message: `Looking up ${needsEnrich.length} unfamiliar wine${needsEnrich.length === 1 ? '' : 's'}…` })
+        const CONCURRENCY = 5
+        for (let i = 0; i < needsEnrich.length; i += CONCURRENCY) {
+          const chunk = needsEnrich.slice(i, i + CONCURRENCY)
+          const enriched = await Promise.allSettled(
+            chunk.map(w => findWineOnWeb(w.name, w.vintage ?? null).catch(() => ({ wine: null })))
+          )
+          for (let j = 0; j < chunk.length; j++) {
+            const r = enriched[j]
+            if (r.status !== 'fulfilled' || !r.value?.wine) continue
+            const data = r.value.wine
+            const idx = wines.indexOf(chunk[j])
+            if (idx < 0) continue
+            wines[idx] = {
+              ...wines[idx],
+              body:      data.body,
+              tannin:    data.tannin,
+              sweetness: data.sweetness,
+              acidity:   data.acidity,
+              grape:     wines[idx].grape   ?? data.grape,
+              region:    wines[idx].region  ?? data.region,
+              color:     wines[idx].color   ?? data.color,
+              tasting:   wines[idx].tasting ?? data.tasting,
+            }
+          }
+        }
+      }
 
       // Second dedup pass: if two tile reads resolved to the same catalog entry, keep the higher-confidence one
       const byCatalogId = new Map()

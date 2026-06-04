@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { supabase } from '../../integrations/supabase/client.ts'
 
 export function useScanHistory() {
-  const saveScan = useCallback(async ({ wines = [], photoFile, buyingFor, place, locationLabel } = {}) => {
+  const saveScan = useCallback(async ({ wines = [], photoFile, buyingFor, place, locationLabel, scanType } = {}) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { scan: null, error: 'Not signed in' }
 
@@ -22,6 +22,7 @@ export function useScanHistory() {
         user_id: user.id,
         photo_path,
         wine_count: wines.length,
+        scan_type: scanType ?? 'list',
         buying_for: buyingFor ?? null,
         location_label: place?.name ?? locationLabel ?? null,
         place_id: place?.placeId ?? null,

@@ -13,6 +13,7 @@ import ShelfSpotlight from '../components/ShelfSpotlight.jsx'
 import { StarRating, TasteMatchPicker } from '../components/WineRatingRow.jsx'
 import { useShortlist } from '../hooks/useShortlist.js'
 import { useWineRatings } from '../hooks/useWineRatings.js'
+import { useWineScoreFeedback } from '../hooks/useWineScoreFeedback.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { supabase } from '../../integrations/supabase/client.ts'
 
@@ -596,8 +597,13 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           </a>
         </div>
 
-        {/* Shelf spotlight — only for confirmed shelf scans */}
-        {(activeScan?.photoBase64 || activeScan?.photoUrl) && activeScan?.scanType === 'shelf' && (
+        {/* Score feedback — only when user is logged in and there's a score to rate */}
+        {user && (matchScore !== null || wine.rating > 0) && (
+          <ScoreFeedback wine={wine} matchScore={matchScore} user={user} />
+        )}
+
+        {/* Shelf spotlight — only for confirmed shelf scans where bottle was located */}
+        {(activeScan?.photoBase64 || activeScan?.photoUrl) && activeScan?.scanType === 'shelf' && spotlight?.found !== false && (
           <div style={{ marginBottom: 16 }}>
             <SectionLabel>Find it on the shelf</SectionLabel>
             <ShelfSpotlight
@@ -671,6 +677,136 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+const SCORE_CHOICES = [
+  { id: 'nailed_it',    label: 'Nailed it'    },
+  { id: 'pretty_close', label: 'Pretty close' },
+  { id: 'missed_it',    label: 'Missed it'    },
+]
+
+function ScoreFeedback({ wine, matchScore, user }) {
+  const rawId = wine._catalogId ?? wine.id
+  const wineCatalogId = (typeof rawId === 'number' || (typeof rawId === 'string' && /^\d+$/.test(rawId)))
+    ? Number(rawId) : null
+
+  const { existing, loading, error, submit } = useWineScoreFeedback({
+    wineCatalogId,
+    wineName: wine.name ?? '',
+    userId: user?.id,
+  })
+
+  const [picked, setPicked]       = useState(null)
+  const [note, setNote]           = useState('')
+  const [saving, setSaving]       = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
+
+  useEffect(() => {
+    if (existing) {
+      setPicked(existing.accuracy)
+      setNote(existing.note ?? '')
+      setConfirmed(true)
+    }
+  }, [existing])
+
+  if (loading) return null
+
+  async function handlePick(accuracy) {
+    setPicked(accuracy)
+    if (accuracy === 'missed_it') return // wait for note + send
+    setSaving(true)
+    const ok = await submit({ accuracy, note: null, tasteFitScore: matchScore, wePoints: wine.rating ?? null })
+    setSaving(false)
+    if (ok) setConfirmed(true)
+  }
+
+  async function handleSendMissed() {
+    setSaving(true)
+    const ok = await submit({ accuracy: 'missed_it', note, tasteFitScore: matchScore, wePoints: wine.rating ?? null })
+    setSaving(false)
+    if (ok) setConfirmed(true)
+  }
+
+  if (confirmed && picked) {
+    const choice = SCORE_CHOICES.find(c => c.id === picked)
+    return (
+      <div style={{ marginBottom: 16, padding: '12px 14px', background: T.forest100, border: `1px solid ${T.forest300}`, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: T.fontBody, fontSize: 13, color: T.forest700, lineHeight: 1.4 }}>
+          ✓ {choice?.label} — thanks for the feedback
+        </span>
+        <button
+          onClick={() => { setConfirmed(false); setPicked(null); setNote('') }}
+          style={{ background: 'none', border: 'none', fontFamily: T.fontBody, fontSize: 12, color: T.ink400, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3, padding: 0, marginLeft: 12, flexShrink: 0 }}
+        >
+          Change
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginBottom: 16, padding: '14px 16px', background: T.ink50, border: `1px solid ${T.ink150}`, borderRadius: 12 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: T.ink400, letterSpacing: '0.14em', textTransform: 'uppercase', fontFamily: T.fontBody, marginBottom: 5 }}>
+        How'd We Do?
+      </div>
+      <div style={{ fontSize: 13, color: T.ink700, fontFamily: T.fontBody, marginBottom: 10, lineHeight: 1.4 }}>
+        Did our score match your experience?
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {SCORE_CHOICES.map(c => {
+          const active = picked === c.id
+          const bg     = active ? (c.id === 'nailed_it' ? T.forest100 : c.id === 'pretty_close' ? T.ochre100 : T.scarlet100) : 'transparent'
+          const border = active ? (c.id === 'nailed_it' ? T.forest500 : c.id === 'pretty_close' ? T.ochre500 : T.scarlet500) : T.ink200
+          const color  = active ? (c.id === 'nailed_it' ? T.forest700 : c.id === 'pretty_close' ? T.ochre700 : T.scarlet600) : T.ink500
+          return (
+            <button
+              key={c.id}
+              onClick={() => !saving && handlePick(c.id)}
+              style={{
+                padding: '7px 14px', borderRadius: 9999,
+                border: `1.5px solid ${border}`, background: bg, color,
+                fontFamily: T.fontBody, fontSize: 13, fontWeight: active ? 700 : 500,
+                cursor: saving ? 'default' : 'pointer', transition: 'all 100ms',
+              }}
+            >
+              {c.label}
+            </button>
+          )
+        })}
+      </div>
+      {picked === 'missed_it' && (
+        <>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="What was off? (optional)"
+            rows={2}
+            style={{
+              width: '100%', marginTop: 10, padding: '8px 10px',
+              borderRadius: 10, border: `1px solid ${T.ink150}`,
+              fontFamily: T.fontBody, fontSize: 13, color: T.ink800,
+              background: T.ink0, resize: 'none', boxSizing: 'border-box', outline: 'none',
+            }}
+          />
+          <button
+            onClick={handleSendMissed}
+            disabled={saving}
+            style={{
+              marginTop: 8, padding: '8px 18px', borderRadius: 9999,
+              border: 'none', background: T.scarlet500, color: 'white',
+              fontFamily: T.fontBody, fontSize: 13, fontWeight: 600,
+              cursor: saving ? 'default' : 'pointer',
+            }}
+          >
+            {saving ? 'Saving…' : 'Send feedback'}
+          </button>
+        </>
+      )}
+      {error && (
+        <div style={{ marginTop: 8, fontSize: 12, color: T.scarlet600, fontFamily: T.fontBody }}>{error}</div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 /**
- * MySom design-system theme bridge.
+ * Uncork design-system theme bridge.
  *
  * Every value points at a CSS variable defined in `tokens.css`.
  * Light/dark mode auto-switches via [data-theme="dark"] on <html>.
