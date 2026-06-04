@@ -15,7 +15,9 @@ import { fileURLToPath } from 'node:url'
 const ROOT      = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ENTRY     = path.join(ROOT, 'dist/server/index.js')
 const WRANGLER  = path.join(ROOT, 'dist/server/wrangler.json')
-const SKIP_CRON = process.argv.includes('--skip-cron')
+const SKIP_CRON  = process.argv.includes('--skip-cron')
+const nameIdx    = process.argv.indexOf('--name')
+const WORKER_NAME = nameIdx >= 0 ? process.argv[nameIdx + 1] : null
 
 const SB_URL = process.env.VITE_SUPABASE_URL
 const SB_KEY = process.env.VITE_SUPABASE_ANON_KEY
@@ -110,14 +112,21 @@ if (!existing.includes(OLD_EXPORT)) {
 fs.writeFileSync(ENTRY, existing.replace(OLD_EXPORT, NEW_EXPORT), 'utf8')
 console.log('[patch-worker] dist/server/index.js patched ✓')
 
-// ── Patch wrangler.json to add cron trigger ───────────────────────────────────
-if (SKIP_CRON) {
-  console.log('[patch-worker] Skipping cron trigger (--skip-cron)')
-} else if (fs.existsSync(WRANGLER)) {
+// ── Patch wrangler.json: name + cron trigger ─────────────────────────────────
+if (fs.existsSync(WRANGLER)) {
   const cfg = JSON.parse(fs.readFileSync(WRANGLER, 'utf8'))
-  cfg.triggers = { crons: ['0 7 * * *'] }
+  if (WORKER_NAME) {
+    cfg.name = WORKER_NAME
+    console.log(`[patch-worker] Worker name set to "${WORKER_NAME}" ✓`)
+  }
+  if (SKIP_CRON) {
+    delete cfg.triggers
+    console.log('[patch-worker] Cron trigger removed (--skip-cron)')
+  } else {
+    cfg.triggers = { crons: ['0 7 * * *'] }
+    console.log('[patch-worker] dist/server/wrangler.json cron trigger patched ✓')
+  }
   fs.writeFileSync(WRANGLER, JSON.stringify(cfg, null, 2), 'utf8')
-  console.log('[patch-worker] dist/server/wrangler.json cron trigger patched ✓')
 } else {
-  console.warn('[patch-worker] dist/server/wrangler.json not found — skipping cron trigger')
+  console.warn('[patch-worker] dist/server/wrangler.json not found — skipping')
 }
