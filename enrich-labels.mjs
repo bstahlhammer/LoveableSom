@@ -26,7 +26,7 @@ import os                              from 'os'
 
 // ── Config ─────────────────────────────────────────────────────────────────
 
-const SUPABASE_URL         = 'https://bromlnbihmfknqcdbieq.supabase.co'
+const SUPABASE_URL         = process.env.SUPABASE_URL || 'https://bromlnbihmfknqcdbieq.supabase.co'
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || ''
 
 // WineSensed metadata CSV on Hugging Face (153 MB)

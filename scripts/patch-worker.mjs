@@ -12,9 +12,17 @@ import fs   from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT     = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const ENTRY    = path.join(ROOT, 'dist/server/index.js')
-const WRANGLER = path.join(ROOT, 'dist/server/wrangler.json')
+const ROOT      = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const ENTRY     = path.join(ROOT, 'dist/server/index.js')
+const WRANGLER  = path.join(ROOT, 'dist/server/wrangler.json')
+const SKIP_CRON = process.argv.includes('--skip-cron')
+
+const SB_URL = process.env.VITE_SUPABASE_URL
+const SB_KEY = process.env.VITE_SUPABASE_ANON_KEY
+if (!SB_URL || !SB_KEY) {
+  console.error('[patch-worker] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY — pass via --env-file')
+  process.exit(1)
+}
 
 if (!fs.existsSync(ENTRY)) {
   console.error('[patch-worker] dist/server/index.js not found — run vite build first')
@@ -31,8 +39,8 @@ if (existing.includes('__image_cron_patched__')) {
 // Uses Supabase REST API via fetch — no SDK needed, works in the no_bundle env.
 const CRON_CODE = `
 // __image_cron_patched__ — injected by scripts/patch-worker.mjs
-const _SB_URL  = 'https://bromlnbihmfknqcdbieq.supabase.co'
-const _SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyb21sbmJpaG1ma25xY2RiaWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMTQyMzMsImV4cCI6MjA5MzU5MDIzM30.jwvh8WQkX5ssSKhY512CH03GG5QRijtLGhNs29iYUjI'
+const _SB_URL  = '${SB_URL}'
+const _SB_KEY  = '${SB_KEY}'
 const _HEADERS = { apikey: _SB_KEY, Authorization: 'Bearer ' + _SB_KEY, 'Content-Type': 'application/json' }
 
 async function _runImageBatch(env) {
@@ -103,7 +111,9 @@ fs.writeFileSync(ENTRY, existing.replace(OLD_EXPORT, NEW_EXPORT), 'utf8')
 console.log('[patch-worker] dist/server/index.js patched ✓')
 
 // ── Patch wrangler.json to add cron trigger ───────────────────────────────────
-if (fs.existsSync(WRANGLER)) {
+if (SKIP_CRON) {
+  console.log('[patch-worker] Skipping cron trigger (--skip-cron)')
+} else if (fs.existsSync(WRANGLER)) {
   const cfg = JSON.parse(fs.readFileSync(WRANGLER, 'utf8'))
   cfg.triggers = { crons: ['0 7 * * *'] }
   fs.writeFileSync(WRANGLER, JSON.stringify(cfg, null, 2), 'utf8')

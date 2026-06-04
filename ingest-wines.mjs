@@ -27,7 +27,7 @@ import { inferAxes }         from './src/core/data/grapeRules.mjs'
 
 // ── Config ─────────────────────────────────────────────────────────────────
 
-const SUPABASE_URL      = 'https://bromlnbihmfknqcdbieq.supabase.co'
+const SUPABASE_URL      = process.env.SUPABASE_URL || 'https://bromlnbihmfknqcdbieq.supabase.co'
 // Use the service-role key for bulk inserts (bypasses RLS).
 // Get it from: https://supabase.com/dashboard/project/bromlnbihmfknqcdbieq/settings/api
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || ''

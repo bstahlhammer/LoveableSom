@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && node scripts/patch-worker.mjs",
-    "build:dev": "vite build --mode development && node scripts/patch-worker.mjs",
+    "build": "vite build && node --env-file=.env.production scripts/patch-worker.mjs",
+    "build:staging": "vite build --mode staging && node --env-file=.env.staging scripts/patch-worker.mjs --skip-cron",
+    "build:dev": "vite build --mode development && node --env-file=.env.production scripts/patch-worker.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "check-clean": "git diff --quiet && git diff --cached --quiet || (echo 'ERROR: Uncommitted changes detected. Commit or stash before deploying.' && exit 1)",
+    "deploy": "npm run check-clean && npm run build && npx wrangler deploy",
+    "deploy:stage": "npm run check-clean && npm run build:staging && npx wrangler deploy --env staging"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

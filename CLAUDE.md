@@ -1,3 +1,8 @@
+## Deploying
+
+Always deploy with `npm run deploy` — never `npm run build && npx wrangler deploy` directly.
+The deploy script gates on a clean git working tree; it will refuse to build if there are uncommitted changes.
+
 ## Development Conventions
 
 For any feature work:

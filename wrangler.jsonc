@@ -8,4 +8,9 @@
     // 7:00 UTC = midnight MT / 3am ET — runs after the previous day's CSE quota resets
     "crons": ["0 7 * * *"]
   },
+  "env": {
+    "staging": {
+      "name": "uncork-staging"
+    }
+  },
 }
