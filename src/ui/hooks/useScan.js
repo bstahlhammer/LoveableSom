@@ -58,6 +58,31 @@ export function useScan() {
 
       let wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name))
 
+      // Sonnet fallback: if all Haiku tiles returned nothing, try once with the full
+      // resized image via Sonnet before giving up.
+      if (!wines.length && photoBase64) {
+        onProgress?.({ stage: 'enhancing', message: 'Taking a closer look…' })
+        try {
+          const fallbackResult = await scanTile(photoBase64, mimeType, controller.signal, (wine) => {
+            wineCount++
+            onWine?.(wine, wineCount)
+            onProgress?.({ stage: 'wine', count: wineCount, message: `${wineCount} wine${wineCount === 1 ? '' : 's'} identified` })
+            const key = normalizeWineName(wine.name)
+            if (!catalogCache.has(key)) {
+              catalogCache.set(key, lookupWineCatalog(wine.name).catch(() => null))
+            }
+          }, true)
+          allWines.push(...fallbackResult.wines)
+          if (fallbackResult.readability === 'good') bestReadability = 'good'
+          else if (fallbackResult.readability === 'partial' && bestReadability === 'unreadable') bestReadability = 'partial'
+          fallbackResult.retakeReasons?.forEach(r => retakeReasonSet.add(r))
+          if (fallbackResult.scanType === 'shelf') scanType = 'shelf'
+        } catch {
+          // fallback failed — fall through to error below
+        }
+        wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name))
+      }
+
       if (!wines.length) {
         throw new Error('I could not identify any wines. Try a closer photo with labels clearly visible.')
       }
@@ -191,11 +216,12 @@ function splitImageIntoTiles(img) {
 }
 
 // Scan one tile against the API, streaming individual wine objects as they arrive.
-async function scanTile(base64, mimeType, signal, onWine) {
+// Pass enhanced=true to use the Sonnet fallback model on the server.
+async function scanTile(base64, mimeType, signal, onWine, enhanced = false) {
   const res = await fetch('/api/scan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: base64, mimeType }),
+    body: JSON.stringify({ image: base64, mimeType, ...(enhanced && { enhanced: true }) }),
     signal,
   })
 

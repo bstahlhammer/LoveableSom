@@ -1,23 +1,34 @@
 import { createFileRoute } from '@tanstack/react-router'
 import Anthropic from '@anthropic-ai/sdk'
 
-const PROMPT = `You are reading text from a photo of a wine list, menu, or physical wine bottles on a shelf.
-Extract every wine visible. Report ONLY what you can directly read — do not infer, estimate, or fill in from memory.
+const PROMPT = `You are a wine identification expert analyzing a photo of a wine shelf, rack, display, or wine list.
+Your task: identify every distinct wine you can see, using both visual recognition and text reading.
 
-CRITICAL RULE FOR SHELF PHOTOS: Only report wines whose name you can read directly on a physical bottle's own label (the paper or printed label attached to the bottle body or neck). Do NOT report a wine based solely on a shelf edge tag, price card, or shelf talker — those describe what a store intends to stock, but the slot may be empty or sold out. A wine only counts if you can see and read its label on an actual bottle in the image. If a shelf edge tag names a wine but no bottle with a matching label is visible above it, skip that wine entirely.
+IDENTIFICATION METHODS — use all of these, in order of reliability:
+1. Read the label text directly if the label is legible (producer name, wine name, vintage, region).
+2. Recognize the label design visually — distinctive labels like Caymus (copper label), 19 Crimes (mugshot portraits), Silver Oak (woodcut art), The Prisoner (Goya figure), Whispering Angel (blush bottle), Josh Cellars (script logo), Meiomi (coastal art), and hundreds of others can be identified by their visual design even when individual letters are small. If you recognize a label design with confidence, report it.
+3. Read shelf edge tags below bottles — these name the wine and price even when bottle labels are too small to read. Report shelf-tag wines at lower confidence (30–60) to signal they were not confirmed from the bottle label itself.
+
+WHAT TO REPORT:
+- Report every wine you can identify by any of the above methods.
+- You do not need to read every letter on a label to report a wine. Visual recognition counts.
+- You do not need to see both producer name AND wine name. Report what you can identify.
+- A wine on a shelf tag with no visible bottle label above it: report it at confidence 20–40.
+- A wine whose label you visually recognize but cannot fully read: report it at confidence 50–70.
+- A wine whose label you can clearly read: report it at confidence 75–100.
+- Do NOT invent wines not present in the image. Only report what you can actually see or recognize.
+- Do NOT hallucinate a wine name based on guessing at unclear text. If you cannot identify it at all, skip it.
 
 For each wine return:
 - id: sequential integer starting at 1
-- name: wine name as printed on the bottle label (string)
-- vintage: year as printed on the bottle label, or null if not legible (string | null)
-- region: region as printed on the bottle label, or null if not legible (string | null)
-- grape: varietal as printed on the bottle label, or null if not legible (string | null)
-- price: the shelf edge price tag price visible below or beside this bottle. Read the shelf tag — NOT any price text on the wine label itself. Include $ symbol. null if no price tag is visible. For wine lists/menus, read the price next to the wine name. (string | null)
-- priceNum: numeric value of price only (no $ or currency), or null (number | null)
-- confidence: 0-100, how clearly you could read this bottle's label (integer)
-- truncated: true if the bottle label appears cut off at the image boundary, else false (boolean)
-
-IMPORTANT: Every wine entry MUST include a producer or winery name readable on the bottle. If you can only read a grape variety (e.g. "Pinot Noir") or variety + vintage without a producer name on the bottle label, skip that entry.
+- name: wine name as best you can determine — from label text, visual recognition, or shelf tag (string)
+- vintage: year if visible on bottle or shelf tag, or null (string | null)
+- region: region if readable on label or shelf tag, or null (string | null)
+- grape: varietal if readable on label or shelf tag, or null (string | null)
+- price: shelf edge price if visible below or beside this bottle, with $ symbol; null if not visible. For wine lists/menus, read the price next to the wine name. (string | null)
+- priceNum: numeric price only (no $ or currency), or null (number | null)
+- confidence: 0–100 — how certain you are this identification is correct (integer)
+- truncated: true if the bottle or label appears cut off at the image boundary, else false (boolean)
 
 Return ONLY raw JSON (no markdown, no code fences):
 {
@@ -25,19 +36,19 @@ Return ONLY raw JSON (no markdown, no code fences):
   "readability": "good",
   "retakeReasons": [],
   "message": "",
-  "scanType": "list"
+  "scanType": "shelf"
 }
 
-readability: "good" = read most clearly | "partial" = some unclear or cut off | "unreadable" = no wine text found
+readability: "good" = identified most wines | "partial" = some unclear or cut off | "unreadable" = could not identify any wines
 retakeReasons — zero or more of: "too_blurry","too_dark","too_far","glare","angle_skewed","label_cut_off","not_a_wine_image","list_too_dense"
 message: short user-facing note if readability is not "good", else empty string.
-scanType: "shelf" if physical wine bottles are visible and you are reading their labels directly (bottles on a rack, shelf, table, or held in hand). "list" if wines appear as text on a menu, wine list, chalkboard, screen, or printed page — no physical bottles present.`
+scanType: "shelf" if physical wine bottles or a wine rack/display is visible. "list" if wines appear as text on a menu, wine list, chalkboard, or printed page with no bottles present.`
 
 export const Route = createFileRoute('/api/scan')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        let body: { image: string; mimeType?: string }
+        let body: { image: string; mimeType?: string; enhanced?: boolean }
 
         try {
           body = await request.json()
@@ -45,7 +56,7 @@ export const Route = createFileRoute('/api/scan')({
           return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
         }
 
-        const { image, mimeType = 'image/jpeg' } = body
+        const { image, mimeType = 'image/jpeg', enhanced = false } = body
 
         if (!image) {
           return Response.json({ error: 'Missing image field (base64)' }, { status: 400 })
@@ -59,14 +70,18 @@ export const Route = createFileRoute('/api/scan')({
         const client = new Anthropic({ apiKey })
         const encoder = new TextEncoder()
 
+        const model = enhanced ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001'
+        const maxTokens = enhanced ? 4096 : 2048
+
         // Each request is one tile from a tiled scan — Haiku handles 5–10 wines per
         // tile reliably and all tiles run in parallel on the client.
+        // When enhanced=true (Sonnet fallback), receives the full resized image.
         const readable = new ReadableStream({
           async start(controller) {
             try {
               const stream = await client.messages.create({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 1024,
+                model,
+                max_tokens: maxTokens,
                 stream: true,
                 messages: [
                   {
