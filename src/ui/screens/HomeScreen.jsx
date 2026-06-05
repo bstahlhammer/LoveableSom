@@ -538,7 +538,7 @@ export default function HomeScreen({ navigate, auth, tasteProfile, hasActiveSess
             marginTop: 6,
             letterSpacing: '0.04em',
           }}>
-            the world of wine
+            Uncork the world of wine
           </div>
         </div>
       </div>
