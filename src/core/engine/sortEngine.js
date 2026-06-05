@@ -1,5 +1,6 @@
 import { computeMatch } from './matchEngine.js'
 import { computeApproachability } from './approachabilityEngine.js'
+import { priceOf } from './filterEngine.js'
 
 /**
  * Sort wines by the given key. Returns a new array.
@@ -24,27 +25,27 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
     case 'crowd':
       sorted.sort((a, b) => {
         if (a.isCrowd !== b.isCrowd) return b.isCrowd ? 1 : -1
-        return b.rating - a.rating
+        return (b.rating ?? b.adjustedMatch ?? b.computedMatch ?? 0) -
+               (a.rating ?? a.adjustedMatch ?? a.computedMatch ?? 0)
       })
       break
     case 'rating':
-      sorted.sort((a, b) => b.rating - a.rating)
+      sorted.sort((a, b) =>
+        (b.rating ?? b.adjustedMatch ?? b.computedMatch ?? 0) -
+        (a.rating ?? a.adjustedMatch ?? a.computedMatch ?? 0)
+      )
       break
     case 'value':
       sorted.sort((a, b) => {
         if (a.isValue !== b.isValue) return b.isValue ? 1 : -1
-        return a.priceNum - b.priceNum
+        return (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity)
       })
       break
     case 'approachability':
       sorted.sort((a, b) => b.computedApproachability - a.computedApproachability)
       break
     case 'price_asc':
-      sorted.sort((a, b) => {
-        const pa = typeof a.priceNum === 'number' ? a.priceNum : Infinity
-        const pb = typeof b.priceNum === 'number' ? b.priceNum : Infinity
-        return pa - pb
-      })
+      sorted.sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity))
       break
     default:
       sorted.sort((a, b) => b.computedMatch - a.computedMatch)

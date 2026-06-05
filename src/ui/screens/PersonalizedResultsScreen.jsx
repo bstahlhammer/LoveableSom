@@ -137,6 +137,12 @@ function WineRowCard({ wine, rank, onTap, onSave, saved }) {
                 textTransform: 'uppercase', fontFamily: T.fontBody,
               }}>{tag.label}</span>
             )}
+            {wine.rating != null && (
+              <span style={{
+                fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 9999,
+                background: T.cobalt100, color: T.cobalt700, fontFamily: T.fontBody,
+              }}>{wine.rating} pts</span>
+            )}
           </div>
           <div style={{
             fontFamily: T.fontDisplay, fontSize: 16, color: T.ink900, lineHeight: 1.2,

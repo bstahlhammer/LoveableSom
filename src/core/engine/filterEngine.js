@@ -26,7 +26,7 @@ export const EMPTY_FILTERS = Object.freeze({
 
 const norm = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : '')
 
-function priceOf(wine) {
+export function priceOf(wine) {
   if (typeof wine.priceNum === 'number' && wine.priceNum > 0) return wine.priceNum
   if (typeof wine.price === 'string') {
     const m = wine.price.match(/(\d+(?:\.\d+)?)/)

@@ -10,11 +10,12 @@ function tasteFitDescriptor(score) {
 }
 
 function qualityDescriptor(wePoints) {
-  if (wePoints == null) return 'Quality unknown'
-  if (wePoints >= 95)   return 'Well above average'
-  if (wePoints >= 90)   return 'Above average'
-  if (wePoints >= 85)   return 'Below average'
-  return 'Well below average'
+  if (wePoints == null) return null
+  const label = wePoints >= 95 ? 'Well above average'
+               : wePoints >= 90 ? 'Above average'
+               : wePoints >= 85 ? 'Below average'
+               : 'Well below average'
+  return `${wePoints} pts · ${label}`
 }
 
 function tasteFitColor(score) {
@@ -73,12 +74,14 @@ export default function TwoSignalBars({ tasteFit, wePoints, confidenceLevel }) {
         descriptor={tasteFitDescriptor(tfScore)}
         color={tasteFitColor(tfScore)}
       />
-      <SignalRow
-        label="Quality"
-        barPct={qualityBarPct(wePoints)}
-        descriptor={qualityDescriptor(wePoints)}
-        color={qualityColor(wePoints)}
-      />
+      {wePoints != null && (
+        <SignalRow
+          label="Quality"
+          barPct={qualityBarPct(wePoints)}
+          descriptor={qualityDescriptor(wePoints)}
+          color={qualityColor(wePoints)}
+        />
+      )}
       {confidenceLevel === 'closest' && (
         <div style={{ marginTop: 2 }}>
           <span style={{
