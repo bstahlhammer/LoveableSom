@@ -106,27 +106,11 @@ function defaultSortKey(buyingFor, scanIntent) {
 
 export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tasteProfile, scannedWines, scanIntent, buyingFor, scanId, persistedState, onPersistState }) {
   const hasProfile = !!tasteProfile
-  const [sortKey, setSortKey] = useState(() => persistedState?.sortKey ?? defaultSortKey(buyingFor, scanIntent))
-  const [filters, setFilters] = useState(() => persistedState?.filters ?? EMPTY_FILTERS)
+  const [sortKey, setSortKey] = useState(() => defaultSortKey(buyingFor, scanIntent))
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
 
-  const setSortKeyAndPersist = useCallback(k => { setSortKey(k); onPersistState?.({ sortKey: k, filters }) }, [filters, onPersistState])
-  const setFiltersAndPersist = useCallback(f => { setFilters(f); onPersistState?.({ sortKey, filters: f }) }, [sortKey, onPersistState])
-  const [filterOpen, setFilterOpen] = useState(false)
-  const [showOnlySaved, setShowOnlySaved] = useState(false)
-  const [showMatchPrompt, setShowMatchPrompt] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const shortlist = useShortlist()
-  const scrollRef = useRef(null)
-
-  const prevScannedWinesRef = useRef(scannedWines)
-  useEffect(() => {
-    if (scannedWines !== prevScannedWinesRef.current) {
-      prevScannedWinesRef.current = scannedWines
-      setSortKey(defaultSortKey(buyingFor, scanIntent))
-      setFilters(EMPTY_FILTERS)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scannedWines])
+  const setSortKeyAndPersist = useCallback(k => { setSortKey(k) }, [])
+  const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
 
   useEffect(() => {
     const el = scrollRef.current
