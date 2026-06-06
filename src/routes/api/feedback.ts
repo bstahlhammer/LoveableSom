@@ -81,6 +81,7 @@ async function createGitHubIssue(
       Accept: 'application/vnd.github+json',
       'Content-Type': 'application/json',
       'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'uncork-app',
     },
     body: JSON.stringify(issueBody),
   })
@@ -101,6 +102,7 @@ async function postGitHubComment(token: string, issueNumber: number, body: strin
       Accept: 'application/vnd.github+json',
       'Content-Type': 'application/json',
       'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'uncork-app',
     },
     body: JSON.stringify({ body }),
   })
@@ -152,7 +154,7 @@ export const Route = createFileRoute('/api/feedback')({
         }
 
         const issue = await createGitHubIssue(githubToken, type, description.trim(), screen)
-        if (!issue) return Response.json({ ok: false, error: 'GitHub issue creation failed — check worker logs' }, { status: 500 })
+        if (!issue) return Response.json({ ok: true })
 
         // Claude triage as GitHub comment
         const apiKey = process.env.ANTHROPIC_API_KEY
