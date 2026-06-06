@@ -152,7 +152,7 @@ export const Route = createFileRoute('/api/feedback')({
         }
 
         const issue = await createGitHubIssue(githubToken, type, description.trim(), screen)
-        if (!issue) return Response.json({ ok: true })
+        if (!issue) return Response.json({ ok: false, error: 'GitHub issue creation failed — check worker logs' }, { status: 500 })
 
         // Claude triage as GitHub comment
         const apiKey = process.env.ANTHROPIC_API_KEY

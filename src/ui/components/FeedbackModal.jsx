@@ -26,7 +26,8 @@ export default function FeedbackModal({ currentScreen, userId, showToast, onClos
         headers,
         body: JSON.stringify({ type, description: description.trim(), screen: currentScreen }),
       })
-      if (!res.ok) throw new Error('failed')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'failed')
       showToast('Feedback sent — thanks!')
       onClose()
     } catch {
