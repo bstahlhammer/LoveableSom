@@ -29,6 +29,12 @@ export default function FeedbackModal({ currentScreen, userId, showToast, onClos
     } else {
       showToast('Feedback sent — thanks!')
       onClose()
+      // fire-and-forget: create GitHub issue + AI triage (errors silently ignored)
+      fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, description: description.trim(), screen: currentScreen }),
+      }).catch(() => {})
     }
   }
 
