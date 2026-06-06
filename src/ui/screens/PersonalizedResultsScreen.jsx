@@ -222,7 +222,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   const scoredWines = useMemo(() => {
     if (!tasteProfile) return baseWines
     return baseWines.map(w => {
-      const rawRaw = w.computedMatch ?? computeMatch(w, tasteProfile)
+      const rawRaw = computeMatch(w, tasteProfile)
       const raw = Number.isFinite(rawRaw) ? rawRaw : null
       const { score: adjusted, isLow, reason, flags } = computeMatchWithConfidence({ ...w, computedMatch: raw ?? 50 }, tasteProfile)
       return {

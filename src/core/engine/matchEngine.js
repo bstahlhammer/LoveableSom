@@ -30,6 +30,18 @@ export function computeMatch(wine, tasteProfile) {
 
   const p = tasteProfile.palate
   if (wine.body == null || wine.tannin == null || wine.sweetness == null || wine.acidity == null) {
+    const charProfile = tasteProfile.character
+    if (charProfile) {
+      const expressed = CHARACTER_AXES.filter(
+        axis => charProfile[axis] != null && wine[axis] != null
+      )
+      if (expressed.length > 0) {
+        const axisScores = expressed.map(axis =>
+          100 - Math.abs(wine[axis] - charProfile[axis])
+        )
+        return Math.round(axisScores.reduce((a, b) => a + b, 0) / expressed.length)
+      }
+    }
     return wine.match ?? 50
   }
 
