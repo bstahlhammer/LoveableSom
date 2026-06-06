@@ -17,24 +17,22 @@ export default function FeedbackModal({ currentScreen, userId, showToast, onClos
   async function handleSubmit() {
     if (!canSubmit) return
     setSubmitting(true)
-    const { error } = await supabase.from('feedback').insert({
-      user_id:     userId,
-      type,
-      description: description.trim(),
-      screen:      currentScreen,
-    })
-    setSubmitting(false)
-    if (error) {
-      showToast("Couldn't send — try again")
-    } else {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers = { 'Content-Type': 'application/json' }
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ type, description: description.trim(), screen: currentScreen }),
+      })
+      if (!res.ok) throw new Error('failed')
       showToast('Feedback sent — thanks!')
       onClose()
-      // fire-and-forget: create GitHub issue + AI triage (errors silently ignored)
-      fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, description: description.trim(), screen: currentScreen }),
-      }).catch(() => {})
+    } catch {
+      showToast("Couldn't send — try again")
+    } finally {
+      setSubmitting(false)
     }
   }
 
