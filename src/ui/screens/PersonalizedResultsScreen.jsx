@@ -197,6 +197,9 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   const [sortKey, setSortKey] = useState(() => defaultSortKey(buyingFor, scanIntent))
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [filterOpen, setFilterOpen] = useState(false)
+  const [showOnlySaved, setShowOnlySaved] = useState(false)
+  const shortlist = useShortlist()
+  const scrollRef = useRef(null)
 
   const setSortKeyAndPersist = useCallback(k => { setSortKey(k) }, [])
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
