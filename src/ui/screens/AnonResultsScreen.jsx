@@ -118,6 +118,16 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
   const shortlist = useShortlist()
   const scrollRef = useRef(null)
 
+  const prevScannedWinesRef = useRef(scannedWines)
+  useEffect(() => {
+    if (scannedWines !== prevScannedWinesRef.current) {
+      prevScannedWinesRef.current = scannedWines
+      setSortKey(defaultSortKey(buyingFor, scanIntent))
+      setFilters(EMPTY_FILTERS)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scannedWines])
+
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
