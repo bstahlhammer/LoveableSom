@@ -30,8 +30,8 @@ export default function FeedbackModal({ currentScreen, userId, showToast, onClos
       if (!res.ok) throw new Error(data.error || 'failed')
       showToast('Feedback sent — thanks!')
       onClose()
-    } catch {
-      showToast("Couldn't send — try again")
+    } catch (err) {
+      showToast(err?.message || "Couldn't send — try again")
     } finally {
       setSubmitting(false)
     }
