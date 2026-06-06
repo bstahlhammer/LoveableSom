@@ -1,5 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createClient }    from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+
+const SUPABASE_URL      = 'https://bromlnbihmfknqcdbieq.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyb21sbmJpaG1ma25xY2RiaWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMTQyMzMsImV4cCI6MjA5MzU5MDIzM30.jwvh8WQkX5ssSKhY512CH03GG5QRijtLGhNs29iYUjI'
 
 const GITHUB_REPO = 'bstahlhammer/LoveableSom'
 const GITHUB_API  = 'https://api.github.com'
@@ -63,12 +67,12 @@ async function createGitHubIssue(
   screen: string,
 ): Promise<{ number: number; html_url: string } | null> {
   const label = LABEL_MAP[type]
-  const body: Record<string, unknown> = {
+  const issueBody: Record<string, unknown> = {
     title: `[${type}] ${description.slice(0, 72)}${description.length > 72 ? '…' : ''}`,
     body:  buildIssueBody(type, screen, description),
     assignees: ['bstahlhammer'],
   }
-  if (label) body.labels = [label]
+  if (label) issueBody.labels = [label]
 
   const res = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/issues`, {
     method: 'POST',
@@ -78,7 +82,7 @@ async function createGitHubIssue(
       'Content-Type': 'application/json',
       'X-GitHub-Api-Version': '2022-11-28',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(issueBody),
   })
 
   if (!res.ok) {
@@ -107,29 +111,50 @@ export const Route = createFileRoute('/api/feedback')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        let body: { type?: string; description?: string; screen?: string }
+        const authHeader  = request.headers.get('Authorization') ?? ''
+        const accessToken = authHeader.replace(/^Bearer\s+/i, '').trim()
+
+        let reqBody: { type?: string; description?: string; screen?: string }
         try {
-          body = await request.json()
+          reqBody = await request.json()
         } catch {
           return Response.json({ error: 'Invalid JSON' }, { status: 400 })
         }
 
-        const { type = 'Feedback', description = '', screen = 'unknown' } = body
+        const { type = 'Feedback', description = '', screen = 'unknown' } = reqBody
         if (!description.trim()) {
           return Response.json({ error: 'Missing description' }, { status: 400 })
         }
 
+        // Save to Supabase using the user's auth token (same pattern as label-request.ts)
+        if (accessToken) {
+          const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { persistSession: false },
+            global: { headers: { Authorization: `Bearer ${accessToken}` } },
+          })
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { error } = await supabase.from('feedback').insert({
+              user_id:     user.id,
+              type,
+              description: description.trim(),
+              screen,
+            })
+            if (error) console.error('Supabase feedback insert error:', error)
+          }
+        }
+
+        // Create GitHub issue (non-blocking on Supabase result)
         const githubToken = process.env.GITHUB_TOKEN
         if (!githubToken) {
           console.error('GITHUB_TOKEN not configured')
           return Response.json({ ok: true })
         }
 
-        // Create GitHub issue
         const issue = await createGitHubIssue(githubToken, type, description.trim(), screen)
         if (!issue) return Response.json({ ok: true })
 
-        // Run Claude triage and post as comment
+        // Claude triage as GitHub comment
         const apiKey = process.env.ANTHROPIC_API_KEY
         if (!apiKey) return Response.json({ ok: true, issueUrl: issue.html_url })
 
