@@ -196,6 +196,7 @@ function defaultSortKey(buyingFor, scanIntent) {
 export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfile, buyingFor, scanIntent, scannedWines, onWineSelect, scanId, mealAppeal, persistedState, onPersistState }) {
   const [sortKey, setSortKey] = useState(() => defaultSortKey(buyingFor, scanIntent))
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [filterOpen, setFilterOpen] = useState(false)
 
   const setSortKeyAndPersist = useCallback(k => { setSortKey(k) }, [])
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
