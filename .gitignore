@@ -20,10 +20,6 @@ dist-ssr
 .wrangler/
 .dev.vars
 
-# Environment files (contain Supabase credentials)
-.env.production
-.env.staging
-
 # Large data files — source of truth is Supabase, not git
 wine-reviews.csv
 wine-reviews2.csv
