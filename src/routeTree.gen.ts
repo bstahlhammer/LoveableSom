@@ -17,6 +17,7 @@ import { Route as ApiScanRouteImport } from './routes/api/scan'
 import { Route as ApiLocateBottleRouteImport } from './routes/api/locate-bottle'
 import { Route as ApiLabelRequestRouteImport } from './routes/api/label-request'
 import { Route as ApiFindWineRouteImport } from './routes/api/find-wine'
+import { Route as ApiFeedbackRouteImport } from './routes/api/feedback'
 import { Route as ApiEnrichRouteImport } from './routes/api/enrich'
 import { Route as ApiDescribePalateRouteImport } from './routes/api/describe-palate'
 
@@ -60,6 +61,11 @@ const ApiFindWineRoute = ApiFindWineRouteImport.update({
   path: '/api/find-wine',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFeedbackRoute = ApiFeedbackRouteImport.update({
+  id: '/api/feedback',
+  path: '/api/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiEnrichRoute = ApiEnrichRouteImport.update({
   id: '/api/enrich',
   path: '/api/enrich',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/birds': typeof BirdsRoute
   '/api/describe-palate': typeof ApiDescribePalateRoute
   '/api/enrich': typeof ApiEnrichRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/find-wine': typeof ApiFindWineRoute
   '/api/label-request': typeof ApiLabelRequestRoute
   '/api/locate-bottle': typeof ApiLocateBottleRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/birds': typeof BirdsRoute
   '/api/describe-palate': typeof ApiDescribePalateRoute
   '/api/enrich': typeof ApiEnrichRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/find-wine': typeof ApiFindWineRoute
   '/api/label-request': typeof ApiLabelRequestRoute
   '/api/locate-bottle': typeof ApiLocateBottleRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/birds': typeof BirdsRoute
   '/api/describe-palate': typeof ApiDescribePalateRoute
   '/api/enrich': typeof ApiEnrichRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/find-wine': typeof ApiFindWineRoute
   '/api/label-request': typeof ApiLabelRequestRoute
   '/api/locate-bottle': typeof ApiLocateBottleRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/birds'
     | '/api/describe-palate'
     | '/api/enrich'
+    | '/api/feedback'
     | '/api/find-wine'
     | '/api/label-request'
     | '/api/locate-bottle'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/birds'
     | '/api/describe-palate'
     | '/api/enrich'
+    | '/api/feedback'
     | '/api/find-wine'
     | '/api/label-request'
     | '/api/locate-bottle'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/birds'
     | '/api/describe-palate'
     | '/api/enrich'
+    | '/api/feedback'
     | '/api/find-wine'
     | '/api/label-request'
     | '/api/locate-bottle'
@@ -153,6 +165,7 @@ export interface RootRouteChildren {
   BirdsRoute: typeof BirdsRoute
   ApiDescribePalateRoute: typeof ApiDescribePalateRoute
   ApiEnrichRoute: typeof ApiEnrichRoute
+  ApiFeedbackRoute: typeof ApiFeedbackRoute
   ApiFindWineRoute: typeof ApiFindWineRoute
   ApiLabelRequestRoute: typeof ApiLabelRequestRoute
   ApiLocateBottleRoute: typeof ApiLocateBottleRoute
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFindWineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/feedback': {
+      id: '/api/feedback'
+      path: '/api/feedback'
+      fullPath: '/api/feedback'
+      preLoaderRoute: typeof ApiFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/enrich': {
       id: '/api/enrich'
       path: '/api/enrich'
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   BirdsRoute: BirdsRoute,
   ApiDescribePalateRoute: ApiDescribePalateRoute,
   ApiEnrichRoute: ApiEnrichRoute,
+  ApiFeedbackRoute: ApiFeedbackRoute,
   ApiFindWineRoute: ApiFindWineRoute,
   ApiLabelRequestRoute: ApiLabelRequestRoute,
   ApiLocateBottleRoute: ApiLocateBottleRoute,
