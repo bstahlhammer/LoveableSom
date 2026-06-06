@@ -183,6 +183,7 @@ export default function App() {
   const [reviewWines, setReviewWines] = useState([])
   const [showAddWine, setShowAddWine] = useState(false)
   const [resultsViewState, setResultsViewState] = useState({})
+  const [resultsViewKey, setResultsViewKey] = useState(0)
 
   const { saveScan, loadScan, getPhotoUrl } = useScanHistory()
   const { saveProfile, loadProfile } = useTasteProfileSync()
@@ -397,6 +398,7 @@ export default function App() {
       case 'anonResults':
         return (
           <AnonResultsScreen
+            key={resultsViewKey}
             {...nav}
             tasteProfile={tasteProfile}
             scannedWines={scannedWines}
@@ -458,6 +460,7 @@ export default function App() {
       case 'personalizedResults':
         return (
           <PersonalizedResultsScreen
+            key={resultsViewKey}
             {...nav}
             tasteProfile={tasteProfile}
             buyingFor={buyingFor}
@@ -495,6 +498,7 @@ export default function App() {
                 setBuyingFor(null)
                 setScanIntent(null)
                 setResultsViewState(prev => ({ ...prev, personalizedResults: null, anonResults: null }))
+                setResultsViewKey(k => k + 1)
                 const photoUrl = scanRow.photo_path ? await getPhotoUrl(scanRow.photo_path) : null
                 setActiveScan({ scanId: scanRow.id, photoUrl, scanType: scanRow.scan_type ?? 'list' })
                 navigate(tasteProfile ? 'personalizedResults' : 'anonResults')
