@@ -492,6 +492,9 @@ export default function App() {
               if (wines?.length) {
                 setScannedWines({ wines, readability: 'good', retakeReasons: [], message: '' })
                 setHasScanned(true)
+                setBuyingFor(null)
+                setScanIntent(null)
+                setResultsViewState(prev => ({ ...prev, personalizedResults: null, anonResults: null }))
                 const photoUrl = scanRow.photo_path ? await getPhotoUrl(scanRow.photo_path) : null
                 setActiveScan({ scanId: scanRow.id, photoUrl, scanType: scanRow.scan_type ?? 'list' })
                 navigate(tasteProfile ? 'personalizedResults' : 'anonResults')
