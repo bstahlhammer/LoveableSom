@@ -490,15 +490,17 @@ export default function App() {
           <HistoryScreen
             {...nav}
             onOpenScan={async (scanRow) => {
+              // Reset sort/filter state synchronously (before any await) so these
+              // commits land before PersonalizedResultsScreen mounts on navigate.
+              setBuyingFor(null)
+              setScanIntent(null)
+              setResultsViewState(prev => ({ ...prev, personalizedResults: null, anonResults: null }))
+              setResultsViewKey(k => k + 1)
               const { wines: rawWines } = await loadScan(scanRow.id)
               const wines = (rawWines || []).map(w => ({ ...w, imageUrl: w.imageUrl ?? findWineImage(w.name) }))
               if (wines?.length) {
                 setScannedWines({ wines, readability: 'good', retakeReasons: [], message: '' })
                 setHasScanned(true)
-                setBuyingFor(null)
-                setScanIntent(null)
-                setResultsViewState(prev => ({ ...prev, personalizedResults: null, anonResults: null }))
-                setResultsViewKey(k => k + 1)
                 const photoUrl = scanRow.photo_path ? await getPhotoUrl(scanRow.photo_path) : null
                 setActiveScan({ scanId: scanRow.id, photoUrl, scanType: scanRow.scan_type ?? 'list' })
                 navigate(tasteProfile ? 'personalizedResults' : 'anonResults')
