@@ -298,24 +298,24 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
                 const circleColor = matchScore >= 70 ? T.forest400 : matchScore >= 50 ? T.ochre400 : T.scarlet400
                 const textColor   = matchScore >= 70 ? T.forest300 : matchScore >= 50 ? T.ochre300 : T.scarlet300
                 return (
-                  <div style={{
-                    position: 'absolute', top: 0, left: 0,
-                    padding: '5px 7px',
-                    background: 'rgba(0,0,0,0.62)',
-                    borderRadius: '8px 0 8px 0',
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                    gap: 4,
-                  }}>
-                    <span style={{ fontFamily: T.fontBody, fontSize: 7, color: '#ffffff', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 700, lineHeight: 1 }}>match score</span>
+                  <div style={{ position: 'absolute', top: -18, left: -18, zIndex: 2 }}>
                     <div style={{
+                      position: 'relative',
                       width: 36, height: 36, borderRadius: '50%',
                       border: `2px solid ${circleColor}`,
-                      background: 'rgba(10,10,10,0.82)',
+                      background: 'rgba(0,0,0,0.45)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       <span style={{ fontFamily: T.fontBody, fontWeight: 700, fontSize: 13, color: textColor, lineHeight: 1 }}>
                         {matchScore}
                       </span>
+                      <span style={{
+                        position: 'absolute', bottom: '100%', left: '50%',
+                        transform: 'translateX(-50%)',
+                        marginBottom: 3, whiteSpace: 'nowrap',
+                        fontFamily: T.fontBody, fontSize: 7, color: '#ffffff',
+                        letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 700, lineHeight: 1,
+                      }}>match score</span>
                     </div>
                   </div>
                 )
