@@ -108,7 +108,28 @@ function ConfidencePill({ flags, wine }) {
   )
 }
 
-function WineRowCard({ wine, rank, onTap, onSave, saved }) {
+function SortRationale({ wine, sortKey }) {
+  const base = { fontSize: 11, fontFamily: T.fontBody, marginTop: 2 }
+  if (sortKey === 'rating') {
+    return wine.rating != null
+      ? <div style={{ ...base, color: T.cobalt600 }}>critic score: {wine.rating} pts</div>
+      : <div style={{ ...base, color: T.ink300 }}>no critic score on file</div>
+  }
+  if (sortKey === 'crowd') {
+    if (wine.rating != null) return <div style={{ ...base, color: T.cobalt600 }}>{wine.rating} pts · crowd fav</div>
+    const a = wine.computedApproachability ?? 3
+    const label = a >= 4 ? 'easy-drinking' : a >= 3 ? 'moderate' : 'bold / tannic'
+    return <div style={{ ...base, color: T.ink400 }}>approachability {a}/5 · {label}</div>
+  }
+  if (sortKey === 'price_asc' || sortKey === 'value') {
+    return wine.priceNum != null
+      ? <div style={{ ...base, color: T.ink600 }}>${wine.priceNum}</div>
+      : <div style={{ ...base, color: T.ink300 }}>price not on file</div>
+  }
+  return null
+}
+
+function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
   const score = [wine.adjustedMatch, wine.computedMatch, wine.rating, 75].find(v => Number.isFinite(v)) ?? 75
   const tag = getTag(score)
   const cardBg = score >= 70 ? 'white' : score >= 50 ? T.ink50 : 'oklch(98% 0.02 30)'
@@ -154,6 +175,7 @@ function WineRowCard({ wine, rank, onTap, onSave, saved }) {
           <div style={{ fontSize: 11, color: T.ink400, marginTop: 2, fontFamily: T.fontBody }}>
             {[wine.grape, wine.region].filter(Boolean).join(' · ')}
           </div>
+          <SortRationale wine={wine} sortKey={sortKey} />
           <NaturalBadge wine={wine} />
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -417,6 +439,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
                 key={wine.id ?? wine.name}
                 wine={wine}
                 rank={i}
+                sortKey={sortKey}
                 onTap={onWineSelect}
                 onSave={() => shortlist.toggle(wine)}
                 saved={shortlist.isSaved(wine)}
