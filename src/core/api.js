@@ -340,16 +340,69 @@ export async function searchPlaces() { return { suggestions: [], error: 'not_con
 export async function getPlaceDetails() { return { place: null, error: 'not_configured' } }
 export async function findNearbyPlaces() { return { places: [], error: 'not_configured' } }
 
-export async function locateBottleInScan({ photoUrl, photoBase64, wineName, vintage, region, grape } = {}) {
+/**
+ * Map a bounding box from tile-relative coordinates back to full-image coordinates.
+ * All values are normalized fractions (0–1) relative to their respective images.
+ */
+export function mapBboxToFullImage(bbox, tileRect) {
+  return {
+    x: tileRect.x + bbox.x * tileRect.w,
+    y: tileRect.y + bbox.y * tileRect.h,
+    w: bbox.w * tileRect.w,
+    h: bbox.h * tileRect.h,
+  }
+}
+
+function _cropBase64ToTile(base64, tileRect) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const W = img.width
+      const H = img.height
+      const x = Math.floor(tileRect.x * W)
+      const y = Math.floor(tileRect.y * H)
+      const w = Math.ceil(tileRect.w * W)
+      const h = Math.ceil(tileRect.h * H)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h)
+      resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1])
+    }
+    img.onerror = () => resolve(null)
+    img.src = `data:image/jpeg;base64,${base64}`
+  })
+}
+
+export async function locateBottleInScan({ photoUrl, photoBase64, wineName, vintage, region, grape, tileRect } = {}) {
   if ((!photoUrl && !photoBase64) || !wineName) return { found: false, error: 'missing_params' }
+
+  let croppedBase64 = null
+  if (photoBase64 && tileRect) {
+    croppedBase64 = await _cropBase64ToTile(photoBase64, tileRect).catch(() => null)
+  }
+
   try {
     const res = await fetch('/api/locate-bottle', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ photoUrl, photoBase64, wineName, vintage, region, grape }),
+      body: JSON.stringify({
+        photoUrl:    croppedBase64 ? undefined : photoUrl,
+        photoBase64: croppedBase64 ?? photoBase64,
+        wineName,
+        vintage,
+        region,
+        grape,
+      }),
     })
     if (!res.ok) return { found: false, error: 'request_failed' }
-    return await res.json()
+    const result = await res.json()
+
+    // Remap bbox from tile-local coordinates back to full-image coordinates
+    if (result.found && result.bbox && croppedBase64 && tileRect) {
+      result.bbox = mapBboxToFullImage(result.bbox, tileRect)
+    }
+    return result
   } catch (e) {
     return { found: false, error: e?.message || 'unknown' }
   }

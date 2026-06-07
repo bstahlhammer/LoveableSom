@@ -141,7 +141,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
     if (!hasPhoto || !wine?.name) return
     setSpotlight(null)
     setSpotlightLoading(true)
-    locateBottleInScan({ photoUrl: activeScan.photoUrl, photoBase64: activeScan.photoBase64, wineName: wine.name, vintage: wine.vintage, region: wine.region, grape: wine.grape })
+    locateBottleInScan({ photoUrl: activeScan.photoUrl, photoBase64: activeScan.photoBase64, wineName: wine.name, vintage: wine.vintage, region: wine.region, grape: wine.grape, tileRect: wine._tileRect ?? null })
       .then(result => setSpotlight(result))
       .finally(() => setSpotlightLoading(false))
   }
@@ -152,7 +152,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
     let cancelled = false
     setSpotlight(null)
     setSpotlightLoading(true)
-    locateBottleInScan({ photoUrl: activeScan.photoUrl, photoBase64: activeScan.photoBase64, wineName: wine.name, vintage: wine.vintage, region: wine.region, grape: wine.grape })
+    locateBottleInScan({ photoUrl: activeScan.photoUrl, photoBase64: activeScan.photoBase64, wineName: wine.name, vintage: wine.vintage, region: wine.region, grape: wine.grape, tileRect: wine._tileRect ?? null })
       .then(result => { if (!cancelled) setSpotlight(result) })
       .finally(() => { if (!cancelled) setSpotlightLoading(false) })
     return () => { cancelled = true }

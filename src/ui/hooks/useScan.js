@@ -30,7 +30,7 @@ export function useScan() {
 
       // All tiles scan in parallel — wall time ≈ slowest single tile, not N × tile
       const tileResults = await Promise.allSettled(
-        tiles.map(tileBase64 => scanTile(tileBase64, mimeType, controller.signal, (wine) => {
+        tiles.map(({ base64: tileBase64, normRect }) => scanTile(tileBase64, mimeType, controller.signal, (wine) => {
           wineCount++
           onWine?.(wine, wineCount)
           onProgress?.({ stage: 'wine', count: wineCount, message: `${wineCount} wine${wineCount === 1 ? '' : 's'} identified` })
@@ -38,7 +38,7 @@ export function useScan() {
           if (!catalogCache.has(key)) {
             catalogCache.set(key, lookupWineCatalog(wine.name).catch(() => null))
           }
-        }))
+        }).then(result => ({ ...result, normRect })))
       )
 
       const allWines = []
@@ -48,8 +48,8 @@ export function useScan() {
 
       for (const result of tileResults) {
         if (result.status !== 'fulfilled') continue
-        const { wines: tw, readability, retakeReasons, scanType: tileType } = result.value
-        allWines.push(...tw)
+        const { wines: tw, readability, retakeReasons, scanType: tileType, normRect } = result.value
+        allWines.push(...tw.map(w => ({ ...w, _tileRect: normRect ?? null })))
         if (readability === 'good') bestReadability = 'good'
         else if (readability === 'partial' && bestReadability === 'unreadable') bestReadability = 'partial'
         retakeReasons.forEach(r => retakeReasonSet.add(r))
@@ -177,6 +177,7 @@ function mergeCatalogWine(scanned, cat) {
     scannedPriceNum: scanned.priceNum   ?? null,
     catalogPrice:    cat.price          ?? null,
     catalogPriceNum: cat.priceNum       ?? null,
+    _tileRect:       scanned._tileRect  ?? null,
   }
 }
 
@@ -215,7 +216,10 @@ function splitImageIntoTiles(img) {
       ctx.drawImage(img, x, y, w, h, 0, 0, canvas.width, canvas.height)
       const dataUrl = canvas.toDataURL('image/jpeg', QUALITY)
       const comma = dataUrl.indexOf(',')
-      if (comma >= 0) tiles.push(dataUrl.slice(comma + 1))
+      if (comma >= 0) tiles.push({
+        base64: dataUrl.slice(comma + 1),
+        normRect: { x: x / W, y: y / H, w: w / W, h: h / H },
+      })
     }
   }
   return tiles
