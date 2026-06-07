@@ -59,8 +59,11 @@ export function useScan() {
       let wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name))
 
       // Sonnet fallback: if all Haiku tiles returned nothing, try once with the full
-      // resized image via Sonnet before giving up.
-      if (!wines.length && photoBase64) {
+      // resized image via Sonnet before giving up. Skip if retakeReasons indicate the
+      // image itself is the problem — Sonnet won't recover a blurry or non-wine photo.
+      const HOPELESS_REASONS = new Set(['not_a_wine_image', 'too_blurry', 'too_dark'])
+      const isHopeless = [...retakeReasonSet].some(r => HOPELESS_REASONS.has(r))
+      if (!wines.length && photoBase64 && !isHopeless) {
         onProgress?.({ stage: 'enhancing', message: 'Taking a closer look…' })
         try {
           const fallbackResult = await scanTile(photoBase64, mimeType, controller.signal, (wine) => {
@@ -104,7 +107,7 @@ export function useScan() {
 
       // AI enrichment pass: for wines the catalog didn't recognize, call /api/find-wine.
       // Runs up to 5 concurrent requests so common brands resolve before results show.
-      const needsEnrich = wines.filter(w => w.body == null && w.name && w.name.length > 4)
+      const needsEnrich = wines.filter(w => w.body == null && w.name && w.name.length > 4 && (w.confidence ?? 0) >= 40)
       if (needsEnrich.length > 0) {
         onProgress?.({ stage: 'enriching', message: `Looking up ${needsEnrich.length} unfamiliar wine${needsEnrich.length === 1 ? '' : 's'}…` })
         const CONCURRENCY = 5
