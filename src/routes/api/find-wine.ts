@@ -96,6 +96,10 @@ export const Route = createFileRoute('/api/find-wine')({
                     sweetness: { type: 'integer', description: '0=bone dry, 100=very sweet' },
                     acidity: { type: 'integer', description: '0=flat, 100=very crisp/tart' },
                     description: { type: 'string' },
+                    points: {
+                      type: 'integer',
+                      description: 'Typical critic score 80–100 (Wine Enthusiast / Wine Spectator scale), or omit if unknown',
+                    },
                   },
                   required: ['found'],
                 },
@@ -124,6 +128,11 @@ export const Route = createFileRoute('/api/find-wine')({
 
           const clamp = (v: unknown) =>
             typeof v === 'number' ? Math.max(0, Math.min(100, Math.round(v))) : 50
+          const clampPoints = (v: unknown) =>
+            typeof v === 'number' ? Math.max(80, Math.min(100, Math.round(v))) : null
+
+          const points = clampPoints(info.points)
+          const price = typeof body.vintage === 'number' ? null : null // price not known from AI
 
           const wine = {
             id: `web_${Date.now()}`,
@@ -139,12 +148,13 @@ export const Route = createFileRoute('/api/find-wine')({
             sweetness: clamp(info.sweetness),
             acidity: clamp(info.acidity),
             tasting: (info.description as string) || null,
+            rating: points,
             imageUrl: null,
             flavorTags: [] as string[],
             wineStyle: ['conventional'] as string[],
             adventurousness: 3,
             isValue: false,
-            isCrowd: false,
+            isCrowd: points != null && points >= 88,
             pairings: [],
             retailers: [],
           }
@@ -152,7 +162,8 @@ export const Route = createFileRoute('/api/find-wine')({
           // Best-effort insert into catalog so future lookups are instant
           supabase
             .from('wine_catalog')
-            .insert({
+            .upsert({
+              title: wine.name,
               name: wine.name,
               winery: wine.winery,
               vintage: wine.vintage ? parseInt(wine.vintage) : null,
@@ -165,7 +176,8 @@ export const Route = createFileRoute('/api/find-wine')({
               sweetness: wine.sweetness,
               acidity: wine.acidity,
               description: wine.tasting,
-            })
+              points: points,
+            }, { onConflict: 'title' })
             .catch(() => {})
 
           return Response.json({ wine, source: 'ai' })
