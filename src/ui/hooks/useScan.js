@@ -316,18 +316,19 @@ const DESCRIPTIVE_PREFIXES = [
   'wine with ', 'red wine with ', 'white wine with ', 'rosé with ', 'rose with ',
   'sparkling wine with ', 'bottle with ', 'wine bottle with ',
 ]
+// Multi-word phrases only — avoid single words that appear in real wine names
 const DESCRIPTIVE_PHRASES = [
-  'illustrated label', 'decorative label', 'patterned label', 'botanical',
+  'illustrated label', 'decorative label', 'patterned label',
   'flower design', 'animal skull', 'vintage truck', 'vehicle imagery',
   'top shelf', 'bottom shelf', 'left side', 'right side', 'shelf,',
-  'label design', 'artistic label', 'hand-drawn',
+  'label design', 'artistic label',
 ]
 function isDescriptiveName(name) {
   const lc = String(name).toLowerCase()
   if (DESCRIPTIVE_PREFIXES.some(p => lc.startsWith(p))) return true
   if (DESCRIPTIVE_PHRASES.some(p => lc.includes(p))) return true
-  // Names with parenthetical location/design hints: "Malbec (illustrated label)"
-  if (/\((?:top|bottom|left|right|shelf|label|illustrated|decorative|patterned|vintage|bottle)/.test(lc)) return true
+  // Parenthetical shelf-position cues: "Malbec (top shelf, left)" — but not "(illustrated)" which could be a real name
+  if (/\((?:top shelf|bottom shelf|left side|right side|shelf,?\s*(?:left|right|top|bottom))/.test(lc)) return true
   return false
 }
 

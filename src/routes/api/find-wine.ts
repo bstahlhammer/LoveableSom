@@ -29,12 +29,13 @@ export const Route = createFileRoute('/api/find-wine')({
         })
 
         // 1. Supabase exact match
-        const { data: exact } = await supabase
+        const { data: exact, error: e1 } = await supabase
           .from('wine_catalog')
           .select(COLS)
           .ilike('name', name)
           .limit(1)
           .single()
+        if (e1 && e1.code !== 'PGRST116') console.error('[find-wine] exact match error:', e1.message, '| name:', name)
         if (exact) return Response.json({ wine: _toWine(exact), source: 'catalog' })
 
         // 2. Supabase full-text search
@@ -45,11 +46,12 @@ export const Route = createFileRoute('/api/find-wine')({
           .filter(Boolean)
           .join(' & ')
         if (q) {
-          const { data: fts } = await supabase
+          const { data: fts, error: e2 } = await supabase
             .from('wine_catalog')
             .select(COLS)
             .textSearch('name', q, { type: 'websearch', config: 'english' })
             .limit(1)
+          if (e2) console.error('[find-wine] fts error:', e2.message, '| name:', name)
           if (fts?.length) return Response.json({ wine: _toWine(fts[0]), source: 'catalog' })
         }
 
@@ -110,11 +112,15 @@ export const Route = createFileRoute('/api/find-wine')({
 
           const toolBlock = msg.content.find((b) => b.type === 'tool_use')
           if (!toolBlock || toolBlock.type !== 'tool_use') {
+            console.error('[find-wine] AI returned no tool call for:', name)
             return Response.json({ wine: null, source: 'not_found' })
           }
 
           const info = toolBlock.input as Record<string, unknown>
-          if (!info.found) return Response.json({ wine: null, source: 'not_found' })
+          if (!info.found) {
+            console.warn('[find-wine] AI returned found=false for:', name)
+            return Response.json({ wine: null, source: 'not_found' })
+          }
 
           const clamp = (v: unknown) =>
             typeof v === 'number' ? Math.max(0, Math.min(100, Math.round(v))) : 50
@@ -163,7 +169,8 @@ export const Route = createFileRoute('/api/find-wine')({
             .catch(() => {})
 
           return Response.json({ wine, source: 'ai' })
-        } catch {
+        } catch (err) {
+          console.error('[find-wine] AI stage threw:', err instanceof Error ? err.message : err, '| name:', name)
           return Response.json({ wine: null, source: 'error' })
         }
       },

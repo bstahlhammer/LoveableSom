@@ -17,6 +17,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Run tests
+        run: npm test
+
       - name: Deploy to production
         run: npm run deploy
         env:

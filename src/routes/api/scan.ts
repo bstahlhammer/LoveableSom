@@ -10,13 +10,13 @@ IDENTIFICATION METHODS — use all of these, in order of reliability:
 3. Read shelf edge tags below bottles — these name the wine and price even when bottle labels are too small to read. Report shelf-tag wines at lower confidence (30–60) to signal they were not confirmed from the bottle label itself.
 
 WHAT TO REPORT:
-- Report only wines you can identify with an actual producer name or wine brand name (e.g. "Caymus Cabernet Sauvignon", "La Marca Prosecco", "Meiomi Pinot Noir").
-- You do not need to read every letter. Visual label recognition counts — report what you know.
+- Report wines you can identify from label text OR from visual recognition of a known label design.
+- When you visually recognize a label design (e.g. Caymus copper label, 19 Crimes mugshot portraits, Whispering Angel blush bottle, The Prisoner Goya figure), report the wine's ACTUAL NAME — the producer and wine name you know it to be — at confidence 50–70. Visual recognition counts.
+- You do not need to read every letter. If you recognize it, name it.
 - A wine on a shelf tag with no visible bottle label: report at confidence 20–40.
-- A wine whose label design you recognize visually: report at confidence 50–70.
 - A wine whose label text you can clearly read: report at confidence 75–100.
+- CRITICAL: If you cannot identify the wine by name from reading OR visual recognition, skip it entirely. The name field must contain the wine's actual brand/producer name. Never use the name field to describe what you see. These are FORBIDDEN name formats — skip these entirely instead: "Wine with decorative label", "Red wine with illustrated label", "Malbec (illustrated label)", "Bottle with vintage truck imagery", "Red wine with animal imagery", or any phrase describing the label appearance. If you cannot name it, omit it.
 - Do NOT invent wines not present in the image.
-- Do NOT describe the bottle or label design when you cannot identify the wine — SKIP IT ENTIRELY. Never use the name field for descriptions like "Red wine with decorative label", "Wine with illustrated label", "Malbec (illustrated label)", or any phrase describing what you see rather than naming an actual wine brand. If you cannot name it, omit it.
 
 For each wine return:
 - id: sequential integer starting at 1

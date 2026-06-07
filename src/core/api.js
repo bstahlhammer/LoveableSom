@@ -179,24 +179,27 @@ export async function lookupWineCatalog(name) {
     const client = _supabase()
 
     // 1. Exact match
-    const { data: exact } = await client
+    const { data: exact, error: e1 } = await client
       .from('wine_catalog')
       .select('id,name,winery,vintage,variety,region,country,description,points,price,body,tannin,sweetness,acidity,color,image_url,flavor_tags,wine_style,adventurousness')
       .ilike('name', name)
       .limit(1)
       .single()
+    if (e1 && e1.code !== 'PGRST116') console.error('[catalog] exact match error:', e1.message, '| name:', name)
     if (exact) return _catalogToWine(exact)
 
     // 2. Full-text search
     const query = _normCatalog(name).split(' ').filter(Boolean).join(' & ')
-    const { data: fts } = await client
+    if (!query) return null
+    const { data: fts, error: e2 } = await client
       .from('wine_catalog')
       .select('id,name,winery,vintage,variety,region,country,description,points,price,body,tannin,sweetness,acidity,color,image_url,flavor_tags,wine_style,adventurousness')
       .textSearch('name', query, { type: 'websearch', config: 'english' })
       .limit(1)
+    if (e2) console.error('[catalog] fts error:', e2.message, '| name:', name)
     if (fts?.length) return _catalogToWine(fts[0])
-  } catch {
-    // Network / Supabase error — fail silently
+  } catch (err) {
+    console.error('[catalog] lookup threw:', err?.message, '| name:', name)
   }
   return null
 }
