@@ -10,14 +10,13 @@ IDENTIFICATION METHODS — use all of these, in order of reliability:
 3. Read shelf edge tags below bottles — these name the wine and price even when bottle labels are too small to read. Report shelf-tag wines at lower confidence (30–60) to signal they were not confirmed from the bottle label itself.
 
 WHAT TO REPORT:
-- Report every wine you can identify by any of the above methods.
-- You do not need to read every letter on a label to report a wine. Visual recognition counts.
-- You do not need to see both producer name AND wine name. Report what you can identify.
-- A wine on a shelf tag with no visible bottle label above it: report it at confidence 20–40.
-- A wine whose label you visually recognize but cannot fully read: report it at confidence 50–70.
-- A wine whose label you can clearly read: report it at confidence 75–100.
-- Do NOT invent wines not present in the image. Only report what you can actually see or recognize.
-- Do NOT hallucinate a wine name based on guessing at unclear text. If you cannot identify it at all, skip it.
+- Report only wines you can identify with an actual producer name or wine brand name (e.g. "Caymus Cabernet Sauvignon", "La Marca Prosecco", "Meiomi Pinot Noir").
+- You do not need to read every letter. Visual label recognition counts — report what you know.
+- A wine on a shelf tag with no visible bottle label: report at confidence 20–40.
+- A wine whose label design you recognize visually: report at confidence 50–70.
+- A wine whose label text you can clearly read: report at confidence 75–100.
+- Do NOT invent wines not present in the image.
+- Do NOT describe the bottle or label design when you cannot identify the wine — SKIP IT ENTIRELY. Never use the name field for descriptions like "Red wine with decorative label", "Wine with illustrated label", "Malbec (illustrated label)", or any phrase describing what you see rather than naming an actual wine brand. If you cannot name it, omit it.
 
 For each wine return:
 - id: sequential integer starting at 1

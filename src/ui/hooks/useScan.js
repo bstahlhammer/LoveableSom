@@ -56,7 +56,7 @@ export function useScan() {
         if (tileType === 'shelf') scanType = 'shelf'
       }
 
-      let wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name))
+      let wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name) && !isDescriptiveName(w.name))
 
       // Sonnet fallback: if all Haiku tiles returned nothing, try once with the full
       // resized image via Sonnet before giving up. Skip if retakeReasons indicate the
@@ -83,7 +83,7 @@ export function useScan() {
         } catch {
           // fallback failed — fall through to error below
         }
-        wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name))
+        wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name) && !isDescriptiveName(w.name))
       }
 
       if (!wines.length) {
@@ -309,6 +309,26 @@ function isGenericVarietalName(name) {
     .replace(/\s+/g, ' ')
     .trim()
   return GENERIC_VARIETAL_NAMES.has(stripped)
+}
+
+// Detect when the model returns a label description instead of an actual wine name.
+const DESCRIPTIVE_PREFIXES = [
+  'wine with ', 'red wine with ', 'white wine with ', 'rosé with ', 'rose with ',
+  'sparkling wine with ', 'bottle with ', 'wine bottle with ',
+]
+const DESCRIPTIVE_PHRASES = [
+  'illustrated label', 'decorative label', 'patterned label', 'botanical',
+  'flower design', 'animal skull', 'vintage truck', 'vehicle imagery',
+  'top shelf', 'bottom shelf', 'left side', 'right side', 'shelf,',
+  'label design', 'artistic label', 'hand-drawn',
+]
+function isDescriptiveName(name) {
+  const lc = String(name).toLowerCase()
+  if (DESCRIPTIVE_PREFIXES.some(p => lc.startsWith(p))) return true
+  if (DESCRIPTIVE_PHRASES.some(p => lc.includes(p))) return true
+  // Names with parenthetical location/design hints: "Malbec (illustrated label)"
+  if (/\((?:top|bottom|left|right|shelf|label|illustrated|decorative|patterned|vintage|bottle)/.test(lc)) return true
+  return false
 }
 
 function normalizeWineName(name) {
