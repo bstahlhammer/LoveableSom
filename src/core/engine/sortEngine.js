@@ -14,6 +14,9 @@ function stableKey(w) {
  * @returns {object[]}
  */
 export function sortWines(wines, sortKey, tasteProfile = null) {
+  console.log('[sortEngine] call', sortKey, wines.length, 'wines',
+    wines.map(w => `${w.id ?? w.name}=${w.computedMatch ?? '?'}`).join(' | '))
+
   const enriched = wines.map(w => ({
     ...w,
     computedMatch:          tasteProfile ? computeMatch(w, tasteProfile) : (w.match ?? 50),
@@ -92,5 +95,6 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
       )
   }
 
+  console.log('[sortEngine] result', sortKey, sorted.map(w => `${w.id ?? w.name}(${w.computedMatch ?? '?'})`).join(' > '))
   return sorted
 }
