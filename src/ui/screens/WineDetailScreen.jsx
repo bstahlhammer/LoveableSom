@@ -602,8 +602,8 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           <ScoreFeedback wine={wine} matchScore={matchScore} user={user} />
         )}
 
-        {/* Shelf spotlight — only for confirmed shelf scans where bottle was located */}
-        {(activeScan?.photoBase64 || activeScan?.photoUrl) && activeScan?.scanType === 'shelf' && spotlight?.found !== false && (
+        {/* Shelf spotlight — hide only for confirmed wine-list scans; show for shelf and unknown */}
+        {(activeScan?.photoBase64 || activeScan?.photoUrl) && activeScan?.scanType !== 'list' && spotlight?.found !== false && (
           <div style={{ marginBottom: 16 }}>
             <SectionLabel>Find it on the shelf</SectionLabel>
             <ShelfSpotlight
