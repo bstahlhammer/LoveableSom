@@ -2,6 +2,10 @@ import { computeMatch } from './matchEngine.js'
 import { computeApproachability } from './approachabilityEngine.js'
 import { priceOf } from './filterEngine.js'
 
+function stableKey(w) {
+  return String(w.id ?? w._catalogId ?? w.name ?? '')
+}
+
 /**
  * Sort wines by the given key. Returns a new array.
  * @param {object[]} wines
@@ -20,17 +24,22 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
 
   switch (sortKey) {
     case 'match':
-      sorted.sort((a, b) => b.computedMatch - a.computedMatch)
+      sorted.sort((a, b) =>
+        (b.computedMatch - a.computedMatch) ||
+        stableKey(a).localeCompare(stableKey(b))
+      )
       break
     case 'crowd':
       // Rated wines first (by rating desc); unrated by approachability (crowd-pleasing proxy)
       sorted.sort((a, b) => {
         const ar = a.rating ?? null
         const br = b.rating ?? null
-        if (ar !== null && br !== null) return br - ar
+        if (ar !== null && br !== null)
+          return (br - ar) || stableKey(a).localeCompare(stableKey(b))
         if (ar !== null) return -1
         if (br !== null) return 1
-        return b.computedApproachability - a.computedApproachability
+        return (b.computedApproachability - a.computedApproachability) ||
+          stableKey(a).localeCompare(stableKey(b))
       })
       break
     case 'rating':
@@ -38,7 +47,8 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
       sorted.sort((a, b) => {
         const ar = a.rating ?? null
         const br = b.rating ?? null
-        if (ar !== null && br !== null) return br - ar
+        if (ar !== null && br !== null)
+          return (br - ar) || stableKey(a).localeCompare(stableKey(b))
         if (ar !== null) return -1
         if (br !== null) return 1
         return (a.name ?? '').localeCompare(b.name ?? '')
@@ -50,28 +60,36 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
         if (a.isValue !== b.isValue) return b.isValue ? 1 : -1
         const ap = priceOf(a)
         const bp = priceOf(b)
-        if (ap !== null && bp !== null) return ap - bp
+        if (ap !== null && bp !== null)
+          return (ap - bp) || stableKey(a).localeCompare(stableKey(b))
         if (ap !== null) return -1
         if (bp !== null) return 1
-        return 0
+        return stableKey(a).localeCompare(stableKey(b))
       })
       break
     case 'approachability':
-      sorted.sort((a, b) => b.computedApproachability - a.computedApproachability)
+      sorted.sort((a, b) =>
+        (b.computedApproachability - a.computedApproachability) ||
+        stableKey(a).localeCompare(stableKey(b))
+      )
       break
     case 'price_asc':
       // Priced wines cheap-to-expensive first; unpriced at the bottom
       sorted.sort((a, b) => {
         const ap = priceOf(a)
         const bp = priceOf(b)
-        if (ap !== null && bp !== null) return ap - bp
+        if (ap !== null && bp !== null)
+          return (ap - bp) || stableKey(a).localeCompare(stableKey(b))
         if (ap !== null) return -1
         if (bp !== null) return 1
-        return 0
+        return stableKey(a).localeCompare(stableKey(b))
       })
       break
     default:
-      sorted.sort((a, b) => b.computedMatch - a.computedMatch)
+      sorted.sort((a, b) =>
+        (b.computedMatch - a.computedMatch) ||
+        stableKey(a).localeCompare(stableKey(b))
+      )
   }
 
   return sorted
