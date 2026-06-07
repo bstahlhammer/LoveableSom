@@ -92,11 +92,11 @@ function bottleHue(wine) {
   return T.ochre400
 }
 
-function BlankLabel({ hue }) {
+function BlankLabel({ hue, width = 114, height = 204 }) {
   const h = hue || T.ochre400
   return (
     <div style={{
-      width: 114, height: 204,
+      width, height,
       borderRadius: 8,
       background: T.ink0,
       border: `1px solid ${T.ink150}`,
@@ -221,7 +221,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
         </div>
 
         {/* hero content — two column */}
-        <div style={{ padding: '8px 22px 20px', display: 'flex', gap: 16, alignItems: 'stretch', position: 'relative', zIndex: 1 }}>
+        <div style={{ padding: '4px 16px 14px', display: 'flex', gap: 16, alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
 
           {/* left: all wine info stacked */}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -602,8 +602,8 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           <ScoreFeedback wine={wine} matchScore={matchScore} user={user} />
         )}
 
-        {/* Shelf spotlight — hide only for confirmed wine-list scans; show for shelf and unknown */}
-        {(activeScan?.photoBase64 || activeScan?.photoUrl) && activeScan?.scanType !== 'list' && (
+        {/* Shelf spotlight — show whenever there is a scan photo */}
+        {(activeScan?.photoBase64 || activeScan?.photoUrl) && (
           <div style={{ marginBottom: 16 }}>
             <SectionLabel>Find it on the shelf</SectionLabel>
             <ShelfSpotlight
