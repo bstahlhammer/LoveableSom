@@ -135,6 +135,7 @@ export function useScan() {
               region:    wines[idx].region  ?? data.region,
               color:     wines[idx].color   ?? data.color,
               tasting:   wines[idx].tasting ?? data.tasting,
+              pairings:  wines[idx].pairings?.length ? wines[idx].pairings : (data.pairings ?? []),
             }
           }
         }

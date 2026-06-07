@@ -100,6 +100,11 @@ export const Route = createFileRoute('/api/find-wine')({
                       type: 'integer',
                       description: 'Typical critic score 80–100 (Wine Enthusiast / Wine Spectator scale), or omit if unknown',
                     },
+                    pairings: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'List of 2–4 foods this wine pairs well with, e.g. "grilled salmon", "aged cheddar", "roast lamb"',
+                    },
                   },
                   required: ['found'],
                 },
@@ -132,7 +137,6 @@ export const Route = createFileRoute('/api/find-wine')({
             typeof v === 'number' ? Math.max(80, Math.min(100, Math.round(v))) : null
 
           const points = clampPoints(info.points)
-          const price = typeof body.vintage === 'number' ? null : null // price not known from AI
 
           const wine = {
             id: `web_${Date.now()}`,
@@ -155,7 +159,7 @@ export const Route = createFileRoute('/api/find-wine')({
             adventurousness: 3,
             isValue: false,
             isCrowd: points != null && points >= 88,
-            pairings: [],
+            pairings: Array.isArray(info.pairings) ? (info.pairings as string[]) : [],
             retailers: [],
           }
 

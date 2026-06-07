@@ -131,11 +131,13 @@ export function computeMatchWithConfidence(wine, tasteProfile) {
   if (profileConf < 0.4)       { conf *= 0.65; flags.push('profile') }
   else if (profileConf < 0.95) { conf *= 0.82; flags.push('profile') }
 
-  // Critic rating — "highly rated" means 90+
+  // Critic rating — "highly rated" means 90+; null means quality is unknown
   const rating = wine.rating
   if (typeof rating === 'number') {
     if (rating < 87)       { conf *= 0.84; flags.push('quality') }
     else if (rating < 90)  { conf *= 0.91; flags.push('quality') }
+  } else {
+    conf *= 0.88; flags.push('quality')
   }
 
   // Price — under $20 is budget tier
@@ -154,11 +156,13 @@ export function computeMatchWithConfidence(wine, tasteProfile) {
   const hasProfile = flags.includes('profile')
   const hasQuality = flags.includes('quality')
   const hasPrice   = flags.includes('price')
+  const unknownQuality = hasQuality && typeof rating !== 'number'
   if (hasProfile && hasQuality && hasPrice)      reason = 'limited data'
   else if (hasProfile && hasQuality)             reason = 'limited profile & mixed ratings'
   else if (hasProfile && hasPrice)               reason = 'limited profile'
   else if (hasQuality && hasPrice)               reason = 'budget wine, mixed ratings'
   else if (hasProfile)                           reason = 'limited profile'
+  else if (hasQuality && unknownQuality)         reason = 'quality data unavailable'
   else if (hasQuality)                           reason = 'mixed ratings'
   else if (hasPrice)                             reason = 'budget tier'
 
