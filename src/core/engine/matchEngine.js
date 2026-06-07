@@ -91,6 +91,15 @@ export function computeMatch(wine, tasteProfile) {
     score += bucketById.hated.matchDelta
   }
 
+  // Varietal aversion penalty
+  const avertedVarietals = tasteProfile.aversions?.varietals
+  if (avertedVarietals?.length && wine.grape) {
+    const grapeLC = wine.grape.toLowerCase()
+    if (avertedVarietals.some(v => grapeLC.includes(v.toLowerCase()))) {
+      score -= 30
+    }
+  }
+
   return Math.max(0, Math.min(100, score))
 }
 

@@ -648,7 +648,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
                 onClick={() => {
                   const bucketId = stars >= 5 ? 'loved' : stars >= 4 ? 'liked' : stars >= 3 ? 'ok' : stars >= 2 ? 'disliked' : 'hated'
                   saveRating({ wineId: String(wine.id), bucketId, stars, tasteMatch, wine })
-                  onRate?.({ stars, tasteMatch, comment })
+                  onRate?.({ stars, tasteMatch, comment, wineId: String(wine.id), bucketId, wineData: wine })
                 }}
                 style={{ background: 'none', border: 'none', padding: 0, fontFamily: T.fontBody, fontSize: 12, fontWeight: 700, color: T.forest500, cursor: 'pointer' }}
               >

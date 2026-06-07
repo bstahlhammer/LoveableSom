@@ -418,6 +418,7 @@ function TonightView({ radarDims, tonightDims }) {
 function WordsView({
   tasteProfile, palate, updateAxis,
   character, updateCharAxis, toggleCharAxis,
+  aversions, aversionInput, setAversionInput, addAversion, removeAversion,
   handleSaveTune, savingTune, navigate,
 }) {
   return (
@@ -578,6 +579,58 @@ function WordsView({
         >
           Or retake the guided tasting →
         </button>
+      </div>
+
+      <div style={{ background: 'white', border: `1px solid ${T.ink150}`, borderRadius: 14, padding: '14px 16px', marginBottom: 20, boxShadow: T.shadowMd }}>
+        <SecLabel>Varietals to avoid</SecLabel>
+        <div style={{ fontSize: 12, color: T.ink500, marginBottom: 12, lineHeight: 1.5 }}>
+          Wines with these varietals will be ranked lower in your results.
+        </div>
+        {aversions.varietals.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+            {aversions.varietals.map(v => (
+              <span key={v} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 12, fontWeight: 600, padding: '4px 10px',
+                background: T.scarlet100, color: T.scarlet600,
+                border: `1px solid ${T.scarlet300}`, borderRadius: 9999,
+              }}>
+                {v}
+                <button
+                  onClick={() => removeAversion(v)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.scarlet500, padding: 0, lineHeight: 1, fontSize: 14 }}
+                  aria-label={`Remove ${v}`}
+                >×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={aversionInput}
+            onChange={e => setAversionInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAversion() } }}
+            placeholder="e.g. Cabernet Sauvignon"
+            style={{
+              flex: 1, padding: '9px 12px',
+              border: `1px solid ${T.ink200}`, borderRadius: 10,
+              fontFamily: T.fontBody, fontSize: 13, color: T.ink900,
+              background: 'white', outline: 'none',
+            }}
+          />
+          <button
+            onClick={addAversion}
+            style={{
+              padding: '9px 14px',
+              background: T.ink100, color: T.ink700,
+              border: `1px solid ${T.ink200}`, borderRadius: 10,
+              fontFamily: T.fontBody, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
+          >Add</button>
+        </div>
+        <div style={{ fontSize: 11, color: T.ink400, marginTop: 8 }}>
+          Changes take effect after saving your palate above.
+        </div>
       </div>
     </>
   )
@@ -805,9 +858,11 @@ function ProfileViewBar({ active, onChange }) {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, onProfileUpdate }) {
-  const { saveProfile } = useTasteProfileSync()
+  const { saveProfile } = useTasteProfileSync(auth?.user?.id)
   const [palate, setPalate] = useState(tasteProfile?.palate || { body: 50, sweetness: 30, tannin: 50, acidity: 55 })
   const [character, setCharacter] = useState(tasteProfile?.character || {})
+  const [aversions, setAversions] = useState(tasteProfile?.aversions ?? { varietals: [] })
+  const [aversionInput, setAversionInput] = useState('')
   const [displayName, setDisplayName] = useState(auth?.profile?.display_name || '')
   const [savingTune, setSavingTune] = useState(false)
   const [savingName, setSavingName] = useState(false)
@@ -821,6 +876,17 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
   function updateCharAxis(key, value) { setCharacter(c => ({ ...c, [key]: Number(value) })) }
   function toggleCharAxis(key) {
     setCharacter(c => ({ ...c, [key]: c[key] == null ? 50 : null }))
+  }
+  function addAversion() {
+    const v = aversionInput.trim()
+    if (!v) return
+    if (!aversions.varietals.map(x => x.toLowerCase()).includes(v.toLowerCase())) {
+      setAversions(a => ({ ...a, varietals: [...a.varietals, v] }))
+    }
+    setAversionInput('')
+  }
+  function removeAversion(v) {
+    setAversions(a => ({ ...a, varietals: a.varietals.filter(x => x !== v) }))
   }
 
   async function handleSaveTune() {
@@ -837,6 +903,7 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
       archetype,
       palate,
       character: charToSave,
+      aversions,
     }
     await saveProfile(updated, { refined: true })
     onProfileUpdate?.(updated)
@@ -931,6 +998,8 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
             tasteProfile={tasteProfile}
             palate={palate} updateAxis={updateAxis}
             character={character} updateCharAxis={updateCharAxis} toggleCharAxis={toggleCharAxis}
+            aversions={aversions} aversionInput={aversionInput}
+            setAversionInput={setAversionInput} addAversion={addAversion} removeAversion={removeAversion}
             handleSaveTune={handleSaveTune} savingTune={savingTune}
             navigate={navigate}
           />

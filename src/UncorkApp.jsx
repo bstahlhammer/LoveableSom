@@ -186,7 +186,7 @@ export default function App() {
   const [resultsViewKey, setResultsViewKey] = useState(0)
 
   const { saveScan, loadScan, getPhotoUrl } = useScanHistory()
-  const { saveProfile, loadProfile } = useTasteProfileSync()
+  const { saveProfile, loadProfile } = useTasteProfileSync(auth.user?.id)
 
   // Hydrate taste profile from DB when user signs in
   useEffect(() => {
@@ -199,6 +199,16 @@ export default function App() {
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.user?.id])
+
+  // Re-derive and persist profile whenever wine ratings change
+  useEffect(() => {
+    if (!auth.user?.id) return
+    if (Object.keys(quizAnswers.wineRatings).length === 0) return
+    const profile = deriveProfile(quizAnswers)
+    setTasteProfile(profile)
+    saveProfile(profile)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizAnswers.wineRatings])
 
   const navigate = useCallback((to) => {
     // Screens accessible without an account — scan, browse, and taste-profile flows.
@@ -287,7 +297,14 @@ export default function App() {
     setScreen('wineDetail')
   }, [screen])
 
-  const handleRate = useCallback(({ stars, tasteMatch, comment } = {}) => {
+  const handleRate = useCallback(({ stars, tasteMatch, comment, wineId, bucketId, wineData } = {}) => {
+    if (wineId && bucketId) {
+      setQuizAnswers(prev => ({
+        ...prev,
+        wineRatings: { ...prev.wineRatings, [wineId]: bucketId },
+        ratedWineData: wineData ? { ...prev.ratedWineData, [wineId]: wineData } : prev.ratedWineData,
+      }))
+    }
     const starStr = stars ? '★'.repeat(stars) + ' ' : ''
     const matchStr = tasteMatch ? ` · ${tasteMatch}` : ''
     showToast(`${starStr}Rating saved${matchStr}`)
