@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   inferPalateFromRatings,
   nearestTasteProfile,
@@ -178,6 +178,9 @@ export default function App() {
   const [scannedWines, setScannedWines] = useState(null)
   // Active scan context for the shelf-spotlight feature on wine detail
   const [activeScan, setActiveScan] = useState(null) // { scanId, photoUrl }
+  // In-memory cache: scanId → photoBase64. Lets history scans reuse the photo
+  // that was already decoded in-browser, even when Supabase Storage isn't available.
+  const scanPhotoCacheRef = useRef(new Map())
   // Scan-review flow: a past scan + its wines being rated by the user.
   const [reviewScan, setReviewScan] = useState(null) // raw row from `scans`
   const [reviewWines, setReviewWines] = useState([])
@@ -407,6 +410,7 @@ export default function App() {
                 if (scan) {
                   const photoUrl = scan.photo_path ? await getPhotoUrl(scan.photo_path) : null
                   setActiveScan({ scanId: scan.id, photoUrl, photoBase64, scanType })
+                  if (photoBase64) scanPhotoCacheRef.current.set(scan.id, photoBase64)
                 }
               }
             }}
@@ -519,7 +523,8 @@ export default function App() {
                 setScannedWines({ wines, readability: 'good', retakeReasons: [], message: '' })
                 setHasScanned(true)
                 const photoUrl = scanRow.photo_path ? await getPhotoUrl(scanRow.photo_path) : null
-                setActiveScan({ scanId: scanRow.id, photoUrl, scanType: scanRow.scan_type ?? 'list' })
+                const cachedPhoto = scanPhotoCacheRef.current.get(scanRow.id) ?? null
+                setActiveScan({ scanId: scanRow.id, photoUrl, photoBase64: cachedPhoto, scanType: scanRow.scan_type ?? 'list' })
                 navigate(tasteProfile ? 'personalizedResults' : 'anonResults')
               }
             }}
