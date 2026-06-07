@@ -303,7 +303,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
                       position: 'relative',
                       width: 36, height: 36, borderRadius: '50%',
                       border: `2px solid ${circleColor}`,
-                      background: 'rgba(0,0,0,0.45)',
+                      background: '#000000',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       <span style={{ fontFamily: T.fontBody, fontWeight: 700, fontSize: 13, color: textColor, lineHeight: 1 }}>
