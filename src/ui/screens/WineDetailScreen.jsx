@@ -347,6 +347,21 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
       {/* Scrollable body */}
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 16px', position: 'relative', zIndex: 1, background: `linear-gradient(to bottom, ${T.forest50} 0%, ${T.ink0} 35%, ${T.ink0} 70%, ${T.cobalt50} 100%)` }}>
 
+        {/* Shelf spotlight — first thing you see when opening a wine from a scan */}
+        {(activeScan?.photoBase64 || activeScan?.photoUrl) && (
+          <div style={{ marginBottom: 16, marginTop: 8 }}>
+            <SectionLabel>Find it on the shelf</SectionLabel>
+            <ShelfSpotlight
+              photoUrl={activeScan.photoBase64 ? `data:image/jpeg;base64,${activeScan.photoBase64}` : activeScan.photoUrl}
+              bbox={spotlight?.found ? spotlight.bbox : null}
+              loading={spotlightLoading}
+              error={spotlight?.found === false ? true : null}
+              onRetry={retrySpotlight}
+              label={wine.name}
+            />
+          </div>
+        )}
+
         {/* Pairing card — hero content block */}
         {wine.pairings?.length > 0 && (
           <div style={{ background: T.forest100, borderRadius: 16, padding: '16px 18px', marginBottom: 14, border: `1px solid ${T.forest300}` }}>
@@ -606,21 +621,6 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
         {/* Score feedback — only when user is logged in and there's a score to rate */}
         {user && (matchScore !== null || wine.rating > 0) && (
           <ScoreFeedback wine={wine} matchScore={matchScore} user={user} />
-        )}
-
-        {/* Shelf spotlight — show whenever there is a scan photo */}
-        {(activeScan?.photoBase64 || activeScan?.photoUrl) && (
-          <div style={{ marginBottom: 16 }}>
-            <SectionLabel>Find it on the shelf</SectionLabel>
-            <ShelfSpotlight
-              photoUrl={activeScan.photoBase64 ? `data:image/jpeg;base64,${activeScan.photoBase64}` : activeScan.photoUrl}
-              bbox={spotlight?.found ? spotlight.bbox : null}
-              loading={spotlightLoading}
-              error={spotlight?.found === false ? true : null}
-              onRetry={retrySpotlight}
-              label={wine.name}
-            />
-          </div>
         )}
 
         {/* Bottom padding */}
