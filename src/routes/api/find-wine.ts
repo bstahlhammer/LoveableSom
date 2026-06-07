@@ -7,7 +7,7 @@ const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyb21sbmJpaG1ma25xY2RiaWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMTQyMzMsImV4cCI6MjA5MzU5MDIzM30.jwvh8WQkX5ssSKhY512CH03GG5QRijtLGhNs29iYUjI'
 const MODEL = 'claude-haiku-4-5-20251001'
 const COLS =
-  'id,name,winery,vintage,variety,region,country,description,points,price,body,tannin,sweetness,acidity,color,image_url,flavor_tags,wine_style,adventurousness'
+  'id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color'
 
 export const Route = createFileRoute('/api/find-wine')({
   server: {
@@ -162,12 +162,11 @@ export const Route = createFileRoute('/api/find-wine')({
           // Best-effort insert into catalog so future lookups are instant
           supabase
             .from('wine_catalog')
-            .upsert({
-              title: wine.name,
+            .insert({
               name: wine.name,
-              winery: wine.winery,
+              producer: wine.winery,
               vintage: wine.vintage ? parseInt(wine.vintage) : null,
-              variety: wine.grape,
+              grape: wine.grape,
               region: wine.region,
               country: wine.country,
               color: wine.color,
@@ -176,8 +175,9 @@ export const Route = createFileRoute('/api/find-wine')({
               sweetness: wine.sweetness,
               acidity: wine.acidity,
               description: wine.tasting,
-              points: points,
-            }, { onConflict: 'title' })
+              critic_score: points,
+              source: 'ai',
+            })
             .catch(() => {})
 
           return Response.json({ wine, source: 'ai' })
@@ -191,32 +191,32 @@ export const Route = createFileRoute('/api/find-wine')({
 })
 
 function _toWine(row: Record<string, unknown>) {
-  const price = typeof row.price === 'number' ? row.price : null
-  const points = typeof row.points === 'number' ? row.points : null
+  const price = typeof row.price_usd === 'number' ? row.price_usd : null
+  const score = typeof row.critic_score === 'number' ? row.critic_score : null
   return {
     id: `cat_${row.id}`,
     _catalogId: row.id,
     name: row.name,
-    winery: row.winery || null,
+    winery: (row.producer as string) || null,
     vintage: row.vintage ? String(row.vintage) : null,
-    grape: row.variety || null,
-    region: row.region || null,
-    country: row.country || null,
-    color: row.color || null,
-    body: typeof row.body === 'number' ? row.body : 50,
-    tannin: typeof row.tannin === 'number' ? row.tannin : 40,
-    sweetness: typeof row.sweetness === 'number' ? row.sweetness : 30,
-    acidity: typeof row.acidity === 'number' ? row.acidity : 55,
-    tasting: row.description || null,
-    rating: points,
-    price: price ? `$${price}` : null,
+    grape: (row.grape as string) || null,
+    region: (row.region as string) || null,
+    country: (row.country as string) || null,
+    color: (row.color as string) || null,
+    body: typeof row.body === 'number' ? row.body : null,
+    tannin: typeof row.tannin === 'number' ? row.tannin : null,
+    sweetness: typeof row.sweetness === 'number' ? row.sweetness : null,
+    acidity: typeof row.acidity === 'number' ? row.acidity : null,
+    tasting: (row.description as string) || null,
+    rating: score,
+    price: price != null ? `$${price}` : null,
     priceNum: price,
-    imageUrl: (row.image_url as string) || null,
-    flavorTags: Array.isArray(row.flavor_tags) ? row.flavor_tags : [],
-    wineStyle: Array.isArray(row.wine_style) ? row.wine_style : ['conventional'],
-    adventurousness: typeof row.adventurousness === 'number' ? row.adventurousness : 3,
-    isValue: price != null && points != null && points >= 90 && price <= 30,
-    isCrowd: points != null && points >= 88,
+    imageUrl: null,
+    flavorTags: [],
+    wineStyle: ['conventional'],
+    adventurousness: 3,
+    isValue: price != null && score != null && score >= 90 && price <= 30,
+    isCrowd: score != null && score >= 88,
     pairings: [],
     retailers: [],
   }

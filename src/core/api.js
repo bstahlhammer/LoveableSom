@@ -181,7 +181,7 @@ export async function lookupWineCatalog(name) {
     // 1. Exact match
     const { data: exact, error: e1 } = await client
       .from('wine_catalog')
-      .select('id,name,winery,vintage,variety,region,country,description,points,price,body,tannin,sweetness,acidity,color,image_url,flavor_tags,wine_style,adventurousness')
+      .select('id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color')
       .ilike('name', name)
       .limit(1)
       .single()
@@ -193,7 +193,7 @@ export async function lookupWineCatalog(name) {
     if (!query) return null
     const { data: fts, error: e2 } = await client
       .from('wine_catalog')
-      .select('id,name,winery,vintage,variety,region,country,description,points,price,body,tannin,sweetness,acidity,color,image_url,flavor_tags,wine_style,adventurousness')
+      .select('id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color')
       .textSearch('name', query, { type: 'websearch', config: 'english' })
       .limit(1)
     if (e2) console.error('[catalog] fts error:', e2.message, '| name:', name)
@@ -214,14 +214,14 @@ export async function searchWineCatalog(query, { limit = 20, country, variety, m
     const client = _supabase()
     let q = client
       .from('wine_catalog')
-      .select('id,name,winery,vintage,variety,region,country,description,points,price,body,tannin,sweetness,acidity,color,image_url,flavor_tags,wine_style,adventurousness')
+      .select('id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color')
       .textSearch('name', query.trim(), { type: 'websearch', config: 'english' })
       .limit(limit)
 
     if (country)   q = q.eq('country', country)
-    if (variety)   q = q.ilike('variety', `%${variety}%`)
-    if (minPoints) q = q.gte('points', minPoints)
-    if (maxPrice)  q = q.lte('price', maxPrice)
+    if (variety)   q = q.ilike('grape', `%${variety}%`)
+    if (minPoints) q = q.gte('critic_score', minPoints)
+    if (maxPrice)  q = q.lte('price_usd', maxPrice)
 
     const { data } = await q
     return (data || []).map(_catalogToWine)
@@ -234,22 +234,20 @@ export async function searchWineCatalog(query, { limit = 20, country, variety, m
  * Fetch a page of wines from the catalog (for Explore / Browse screens).
  * Returns { wines, total }.
  */
-export async function getCatalogPage({ page = 0, pageSize = 40, country, variety, minPoints, maxPrice, color, natural, minAdventurousness } = {}) {
+export async function getCatalogPage({ page = 0, pageSize = 40, country, variety, minPoints, maxPrice, color } = {}) {
   try {
     const client = _supabase()
     let q = client
       .from('wine_catalog')
-      .select('id,name,winery,vintage,variety,region,country,description,points,price,body,tannin,sweetness,acidity,color,image_url,flavor_tags,wine_style,adventurousness', { count: 'exact' })
-      .order('points', { ascending: false })
+      .select('id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color', { count: 'exact' })
+      .order('critic_score', { ascending: false })
       .range(page * pageSize, (page + 1) * pageSize - 1)
 
-    if (country)            q = q.eq('country', country)
-    if (variety)            q = q.ilike('variety', `%${variety}%`)
-    if (minPoints)          q = q.gte('points', minPoints)
-    if (maxPrice)           q = q.lte('price', maxPrice)
-    if (color)              q = q.eq('color', color)
-    if (natural)            q = q.contains('wine_style', ['natural'])
-    if (minAdventurousness) q = q.gte('adventurousness', minAdventurousness)
+    if (country)   q = q.eq('country', country)
+    if (variety)   q = q.ilike('grape', `%${variety}%`)
+    if (minPoints) q = q.gte('critic_score', minPoints)
+    if (maxPrice)  q = q.lte('price_usd', maxPrice)
+    if (color)     q = q.eq('color', color)
 
     const { data, count } = await q
     return { wines: (data || []).map(_catalogToWine), total: count ?? 0 }
@@ -258,41 +256,42 @@ export async function getCatalogPage({ page = 0, pageSize = 40, country, variety
   }
 }
 
-function _ratingLabel(points) {
-  if (!points) return null
-  if (points >= 95) return 'Well above average'
-  if (points >= 90) return 'Above average'
-  if (points >= 85) return 'Below average'
+function _ratingLabel(score) {
+  if (!score) return null
+  if (score >= 95) return 'Well above average'
+  if (score >= 90) return 'Above average'
+  if (score >= 85) return 'Below average'
   return 'Well below average'
 }
 
 function _catalogToWine(row) {
+  const score = row.critic_score ?? null
+  const price = row.price_usd ?? null
   return {
     id:          `cat_${row.id}`,
     _catalogId:  row.id,
     name:        row.name,
-    winery:      row.winery,
+    winery:      row.producer ?? null,
     vintage:     row.vintage ? String(row.vintage) : null,
-    grape:       row.variety,
-    region:      row.region,
-    country:     row.country,
-    tasting:     row.description,
-    rating:      row.points,
-    ratingLabel: _ratingLabel(row.points),
-    price:       row.price ? `$${row.price}` : null,
-    priceNum:    row.price,
-    body:        row.body,
-    tannin:      row.tannin,
-    sweetness:   row.sweetness,
-    acidity:     row.acidity,
-    color:       row.color,
-    imageUrl:        row.image_url || null,
-    flavorTags:      row.flavor_tags      ?? [],
-    wineStyle:       row.wine_style       ?? ['conventional'],
-    adventurousness: row.adventurousness  ?? 3,
-    // Placeholders for fields the match engine may read
-    isValue:     row.price != null && row.points >= 90 && row.price <= 30,
-    isCrowd:     row.points >= 88,
+    grape:       row.grape ?? null,
+    region:      row.region ?? null,
+    country:     row.country ?? null,
+    tasting:     row.description ?? null,
+    rating:      score,
+    ratingLabel: _ratingLabel(score),
+    price:       price != null ? `$${price}` : null,
+    priceNum:    price,
+    body:        row.body ?? null,
+    tannin:      row.tannin ?? null,
+    sweetness:   row.sweetness ?? null,
+    acidity:     row.acidity ?? null,
+    color:       row.color ?? null,
+    imageUrl:        null,
+    flavorTags:      [],
+    wineStyle:       ['conventional'],
+    adventurousness: 3,
+    isValue:     price != null && score != null && score >= 90 && price <= 30,
+    isCrowd:     score != null && score >= 88,
     pairings:    [],
     retailers:   [],
   }

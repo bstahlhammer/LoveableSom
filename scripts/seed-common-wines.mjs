@@ -322,10 +322,9 @@ async function main() {
         continue
       }
 
-      const { error } = await supabase.from('wine_catalog').upsert({
-        title:       wine.name,
+      const { error } = await supabase.from('wine_catalog').insert({
         name:        wine.name,
-        variety:     wine.variety,
+        grape:       wine.variety,
         region:      wine.region,
         country:     wine.country,
         color:       r.color || null,
@@ -334,7 +333,8 @@ async function main() {
         sweetness:   clamp(r.sweetness),
         acidity:     clamp(r.acidity),
         description: typeof r.description === 'string' ? r.description : null,
-      }, { onConflict: 'title' })
+        source:      'seed',
+      })
 
       if (error) {
         process.stdout.write('✗')
