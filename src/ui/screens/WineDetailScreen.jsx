@@ -296,7 +296,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
               )}
               {matchScore !== null && (() => {
                 const circleColor = matchScore >= 70 ? T.forest400 : matchScore >= 50 ? T.ochre400 : T.scarlet400
-                const textColor   = matchScore >= 70 ? T.forest300 : matchScore >= 50 ? T.ochre300 : T.scarlet300
+                const textColor   = '#ffffff'
                 return (
                   <div style={{ position: 'absolute', top: -18, left: -18, zIndex: 2 }}>
                     <div style={{
