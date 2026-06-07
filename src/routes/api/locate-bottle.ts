@@ -9,11 +9,24 @@ const InputSchema = z.object({
   vintage: z.string().nullable().optional(),
   region: z.string().nullable().optional(),
   grape: z.string().nullable().optional(),
+  isCrop: z.boolean().optional(),
 })
 
-function buildPrompt(wineName: string, vintage?: string | null, region?: string | null, grape?: string | null) {
+function buildPrompt(wineName: string, vintage?: string | null, region?: string | null, grape?: string | null, isCrop?: boolean) {
   const details = [vintage, region, grape].filter(Boolean).join(', ')
   const wineDesc = details ? `"${wineName}" (${details})` : `"${wineName}"`
+
+  if (isCrop) {
+    return `You are a wine bottle localization expert. This image is a focused crop from a shelf photo — it was extracted from the exact region where ${wineDesc} was already identified by a wine scanner. The bottle IS present somewhere in this image.
+
+Your job: find that bottle and return its precise bounding box.
+
+1. Read every bottle label visible in this crop.
+2. Find the bottle whose label best matches "${wineName}"${vintage ? ` vintage ${vintage}` : ''}. Partial matches count — the label may show just the producer name, just the wine name, or an abbreviated version.
+3. Return a bounding box around the entire physical bottle — from base to capsule top. Center horizontally on the bottle's axis.
+
+Fractional coordinates: x and y are the top-left corner; w and h are width and height. All values are fractions of this image's dimensions, where (0,0) = top-left and (1,1) = bottom-right.`
+  }
 
   return `You are a wine bottle localization expert. Your ONLY job is to find the physical bottle of ${wineDesc} in this shelf photo and return its precise bounding box.
 
@@ -79,7 +92,7 @@ export const Route = createFileRoute('/api/locate-bottle')({
                   },
                   {
                     type: 'text',
-                    text: buildPrompt(body.wineName, body.vintage, body.region, body.grape),
+                    text: buildPrompt(body.wineName, body.vintage, body.region, body.grape, body.isCrop),
                   },
                 ],
               },
@@ -87,11 +100,11 @@ export const Route = createFileRoute('/api/locate-bottle')({
             tools: [
               {
                 name: 'locate_bottle',
-                description: 'Return the bounding box of the specified wine bottle. Only set found=true if you can read text on the label that matches the wine name.',
+                description: 'Return the bounding box of the specified wine bottle. Set found=true if you can identify the correct bottle with reasonable confidence.',
                 input_schema: {
                   type: 'object' as const,
                   properties: {
-                    found: { type: 'boolean', description: 'true only if you are highly confident this is the correct bottle based on readable label text' },
+                    found: { type: 'boolean', description: 'true if you are reasonably confident this is the correct bottle — partial label matches count' },
                     confidence: { type: 'integer', description: 'your confidence 0–100 that this is the correct bottle', minimum: 0, maximum: 100 },
                     x: { type: 'number', description: 'left edge as fraction of image width (0–1)' },
                     y: { type: 'number', description: 'top edge as fraction of image height (0–1)' },
@@ -113,7 +126,7 @@ export const Route = createFileRoute('/api/locate-bottle')({
 
           const result = toolUse.input as any
 
-          if (!result.found || (typeof result.confidence === 'number' && result.confidence < 40)) {
+          if (!result.found || (typeof result.confidence === 'number' && result.confidence < 25)) {
             return Response.json({ found: false, bbox: null })
           }
 

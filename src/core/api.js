@@ -393,6 +393,7 @@ export async function locateBottleInScan({ photoUrl, photoBase64, wineName, vint
         vintage,
         region,
         grape,
+        isCrop:      !!croppedBase64,
       }),
     })
     if (!res.ok) return { found: false, error: 'request_failed' }
