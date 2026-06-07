@@ -227,12 +227,12 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
 
             {/* name */}
-            <h1 style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 22, lineHeight: 1.2, margin: '0 0 6px', letterSpacing: '-0.01em', color: T.ink100, minWidth: 0 }}>
+            <h1 style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 19, lineHeight: 1.2, margin: '0 0 5px', letterSpacing: '-0.01em', color: T.ink100, minWidth: 0 }}>
               {wine.name}
             </h1>
 
-            {/* vintage · region · varietal — larger */}
-            <div style={{ fontSize: 15, color: T.ink300, fontStyle: 'italic', fontFamily: T.fontDisplay, marginBottom: 6, lineHeight: 1.3 }}>
+            {/* vintage · region · varietal */}
+            <div style={{ fontSize: 13, color: T.ink300, fontStyle: 'italic', fontFamily: T.fontDisplay, marginBottom: 6, lineHeight: 1.3 }}>
               {[wine.vintage, wine.region, wine.grape].filter(Boolean).join(' · ')}
             </div>
 
@@ -284,54 +284,60 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
             </div>
           </div>
 
-          {/* right: match score + bottle image */}
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            {matchScore !== null && (() => {
-              const circleColor = matchScore >= 70 ? T.forest400 : matchScore >= 50 ? T.ochre400 : T.scarlet400
-              const textColor   = matchScore >= 70 ? T.forest300 : matchScore >= 50 ? T.ochre400 : T.scarlet400
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, marginBottom: -14, position: 'relative', zIndex: 3 }}>
-                  <span style={{ fontFamily: T.fontBody, fontSize: 8, color: T.ink400, letterSpacing: '0.04em', textTransform: 'uppercase' }}>match score</span>
-                  <div style={{
-                    width: 46, height: 46, borderRadius: '50%',
-                    border: `2.5px solid ${circleColor}`,
-                    background: T.dark,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: `0 0 0 1px ${T.dark}`,
-                  }}>
-                    <span style={{ fontFamily: T.fontBody, fontWeight: 700, fontSize: 15, color: textColor, lineHeight: 1 }}>
-                      {matchScore}
-                    </span>
-                  </div>
+          {/* right: bottle image with match score overlaid top-left */}
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ position: 'relative' }}>
+              {(wine.imageUrl || lazyImageUrl) && !headerImgFailed ? (
+                <div style={{ width: 90, height: 160, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 28px rgba(0,0,0,0.35)' }}>
+                  <img src={wine.imageUrl || lazyImageUrl} alt={wine.name} onError={() => setHeaderImgFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </div>
+              ) : (
+                <BlankLabel hue={hue} width={90} height={160} />
+              )}
+              {matchScore !== null && (() => {
+                const circleColor = matchScore >= 70 ? T.forest400 : matchScore >= 50 ? T.ochre400 : T.scarlet400
+                const textColor   = matchScore >= 70 ? T.forest300 : matchScore >= 50 ? T.ochre300 : T.scarlet300
+                return (
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0,
+                    padding: '5px 7px',
+                    background: 'rgba(0,0,0,0.62)',
+                    borderRadius: '8px 0 8px 0',
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                    gap: 4,
+                  }}>
+                    <span style={{ fontFamily: T.fontBody, fontSize: 7, color: '#ffffff', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 700, lineHeight: 1 }}>match score</span>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      border: `2px solid ${circleColor}`,
+                      background: 'rgba(10,10,10,0.82)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <span style={{ fontFamily: T.fontBody, fontWeight: 700, fontSize: 13, color: textColor, lineHeight: 1 }}>
+                        {matchScore}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+            {!((wine.imageUrl || lazyImageUrl) && !headerImgFailed) && user && wine.id && (
+              labelRequested ? (
+                <span style={{ fontSize: 10, color: T.forest300, fontFamily: T.fontBody, textAlign: 'center', lineHeight: 1.3 }}>
+                  Thanks, we'll track it down
+                </span>
+              ) : (
+                <button
+                  onClick={requestLabel}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    fontSize: 10, color: T.ink500, fontFamily: T.fontBody, textAlign: 'center',
+                    textDecoration: 'underline', lineHeight: 1.3,
+                  }}
+                >
+                  Missing label?
+                </button>
               )
-            })()}
-            {(wine.imageUrl || lazyImageUrl) && !headerImgFailed ? (
-              <div style={{ width: 114, height: 204, borderRadius: 8, overflow: 'hidden', boxShadow: '0 8px 28px rgba(0,0,0,0.35)' }}>
-                <img src={wine.imageUrl || lazyImageUrl} alt={wine.name} onError={() => setHeaderImgFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              </div>
-            ) : (
-              <>
-                <BlankLabel hue={hue} />
-                {user && wine.id && (
-                  labelRequested ? (
-                    <span style={{ fontSize: 10, color: T.forest300, fontFamily: T.fontBody, textAlign: 'center', lineHeight: 1.3 }}>
-                      Thanks, we'll track it down
-                    </span>
-                  ) : (
-                    <button
-                      onClick={requestLabel}
-                      style={{
-                        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                        fontSize: 10, color: T.ink500, fontFamily: T.fontBody, textAlign: 'center',
-                        textDecoration: 'underline', lineHeight: 1.3,
-                      }}
-                    >
-                      Missing label?
-                    </button>
-                  )
-                )}
-              </>
             )}
           </div>
         </div>
