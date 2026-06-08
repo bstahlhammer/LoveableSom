@@ -46,6 +46,17 @@ export function useScan() {
       const retakeReasonSet = new Set()
       let scanType = 'list'
 
+      // If every tile failed and at least one failure looks like a network drop, surface that error
+      // instead of the misleading "no wines found" message.
+      const anyFulfilled = tileResults.some(r => r.status === 'fulfilled')
+      if (!anyFulfilled) {
+        const networkFail = tileResults.find(r => {
+          const e = r.reason
+          return e instanceof TypeError || (e?.name !== 'AbortError' && /network|fetch|connection/i.test(e?.message ?? ''))
+        })
+        if (networkFail) throw new Error('Network connection lost. Check your WiFi and try again.')
+      }
+
       for (const result of tileResults) {
         if (result.status !== 'fulfilled') continue
         const { wines: tw, readability, retakeReasons, scanType: tileType, normRect } = result.value
@@ -227,31 +238,9 @@ function splitImageIntoTiles(img) {
   return tiles
 }
 
-function isNetworkError(e) {
-  if (e?.name === 'AbortError') return false
-  const msg = (e?.message ?? '').toLowerCase()
-  return e instanceof TypeError || msg.includes('network') || msg.includes('failed to fetch') || msg.includes('connection')
-}
-
 // Scan one tile against the API, streaming individual wine objects as they arrive.
 // Pass enhanced=true to use the Sonnet fallback model on the server.
 async function scanTile(base64, mimeType, signal, onWine, enhanced = false) {
-  const MAX_RETRIES = 2
-  let lastError
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    if (signal.aborted) throw new Error('Scan cancelled')
-    if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt))
-    try {
-      return await _scanTileOnce(base64, mimeType, signal, onWine, enhanced)
-    } catch (e) {
-      lastError = e
-      if (!isNetworkError(e) || signal.aborted) throw e
-    }
-  }
-  throw lastError
-}
-
-async function _scanTileOnce(base64, mimeType, signal, onWine, enhanced) {
   const res = await fetch('/api/scan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
