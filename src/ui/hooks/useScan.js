@@ -46,16 +46,24 @@ export function useScan() {
       const retakeReasonSet = new Set()
       let scanType = 'list'
 
-      // If every tile failed and at least one failure looks like a network drop, surface that error
-      // instead of the misleading "no wines found" message.
+      // If every tile failed, surface a meaningful error instead of "no wines found".
       const anyFulfilled = tileResults.some(r => r.status === 'fulfilled')
       if (!anyFulfilled) {
+        const reasons = tileResults.map(r => r.reason?.message ?? String(r.reason))
+        console.error('[scan] All tiles failed:', reasons)
+
         const networkFail = tileResults.find(r => {
           const e = r.reason
           return e instanceof TypeError || (e?.name !== 'AbortError' && /network|fetch|connection/i.test(e?.message ?? ''))
         })
         if (networkFail) throw new Error('Network connection lost. Check your WiFi and try again.')
+
+        // Server-side AI / stream error — don't blame the photo
+        throw new Error('Wine scan failed. Please try again in a moment.')
       }
+      // Log partial failures so we can spot patterns
+      const failedCount = tileResults.filter(r => r.status !== 'fulfilled').length
+      if (failedCount > 0) console.warn(`[scan] ${failedCount}/${tileResults.length} tiles failed`)
 
       for (const result of tileResults) {
         if (result.status !== 'fulfilled') continue
@@ -91,8 +99,8 @@ export function useScan() {
           else if (fallbackResult.readability === 'partial' && bestReadability === 'unreadable') bestReadability = 'partial'
           fallbackResult.retakeReasons?.forEach(r => retakeReasonSet.add(r))
           if (fallbackResult.scanType === 'shelf') scanType = 'shelf'
-        } catch {
-          // fallback failed — fall through to error below
+        } catch (e) {
+          console.error('[scan] Sonnet fallback failed:', e?.message)
         }
         wines = deduplicateWines(allWines).filter(w => !isGenericVarietalName(w.name) && !isDescriptiveName(w.name))
       }
