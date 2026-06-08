@@ -37,6 +37,17 @@ if (existing.includes('__image_cron_patched__')) {
   process.exit(0)
 }
 
+// ── Parse the export block (variable names shift across builds) ───────────────
+// Rollup may assign any short identifier to these exports; match dynamically.
+const exportMatch = existing.match(/export \{\n  (\S+) as createServerEntry,\n  (\S+) as default\n\};/)
+if (!exportMatch) {
+  const found = existing.match(/export \{[^}]+\}/)?.[0] ?? '(none found)'
+  console.error('[patch-worker] Could not find expected export block — check dist/server/index.js format')
+  console.error('  Found: ' + found)
+  process.exit(1)
+}
+const [fullExportBlock, createServerEntryVar, defaultVar] = exportMatch
+
 // ── Scheduled handler code (appended after the compiled TanStack entry) ──────
 // Uses Supabase REST API via fetch — no SDK needed, works in the no_bundle env.
 const CRON_CODE = `
@@ -92,7 +103,7 @@ async function _runImageBatch(env) {
 }
 
 // Wrap the TanStack default export to add scheduled handler
-const _tsDefault = $
+const _tsDefault = ${defaultVar}
 const _worker = {
   fetch:     _tsDefault.fetch.bind(_tsDefault),
   scheduled: function(_event, env, ctx) { ctx.waitUntil(_runImageBatch(env)) },
@@ -100,16 +111,9 @@ const _worker = {
 `
 
 // ── Patch the export block ────────────────────────────────────────────────────
-const OLD_EXPORT = 'export {\n  _ as createServerEntry,\n  $ as default\n};'
-const NEW_EXPORT = `${CRON_CODE}\nexport {\n  _ as createServerEntry,\n  _worker as default\n};`
+const NEW_EXPORT = `${CRON_CODE}\nexport {\n  ${createServerEntryVar} as createServerEntry,\n  _worker as default\n};`
 
-if (!existing.includes(OLD_EXPORT)) {
-  console.error('[patch-worker] Could not find expected export block — check dist/server/index.js format')
-  console.error('  Expected: ' + JSON.stringify(OLD_EXPORT))
-  process.exit(1)
-}
-
-fs.writeFileSync(ENTRY, existing.replace(OLD_EXPORT, NEW_EXPORT), 'utf8')
+fs.writeFileSync(ENTRY, existing.replace(fullExportBlock, NEW_EXPORT), 'utf8')
 console.log('[patch-worker] dist/server/index.js patched ✓')
 
 // ── Patch wrangler.json: name + cron trigger ─────────────────────────────────
