@@ -2,24 +2,34 @@ import { computeMatch } from './matchEngine.js'
 import { computeApproachability } from './approachabilityEngine.js'
 import { priceOf } from './filterEngine.js'
 
+// Returns a unique sort key per wine. _scanIdx (a stable integer from useScan) is preferred;
+// fallback to string for mock/catalog wines that don't go through the scan pipeline.
 function stableKey(w) {
+  if (typeof w._scanIdx === 'number') return w._scanIdx
   return String(w.id ?? w._catalogId ?? w.name ?? '')
+}
+
+function stableKeyCompare(a, b) {
+  const ak = stableKey(a)
+  const bk = stableKey(b)
+  if (typeof ak === 'number' && typeof bk === 'number') return ak - bk
+  return String(ak).localeCompare(String(bk))
 }
 
 /**
  * Sort wines by the given key. Returns a new array.
  * @param {object[]} wines
- * @param {'match'|'crowd'|'rating'|'value'|'approachability'} sortKey
+ * @param {'match'|'crowd'|'rating'|'value'|'approachability'|'price_asc'} sortKey
  * @param {object|null} tasteProfile
  * @returns {object[]}
  */
 export function sortWines(wines, sortKey, tasteProfile = null) {
-  console.log('[sortEngine] call', sortKey, wines.length, 'wines',
-    wines.map(w => `${w.id ?? w.name}=${w.computedMatch ?? '?'}`).join(' | '))
-
   const enriched = wines.map(w => ({
     ...w,
-    computedMatch:          tasteProfile ? computeMatch(w, tasteProfile) : (w.match ?? 50),
+    // Use pre-computed match from scoredWines when available; fall back to a fresh calculation.
+    computedMatch: typeof w.computedMatch === 'number'
+      ? w.computedMatch
+      : (tasteProfile ? computeMatch(w, tasteProfile) : (w.match ?? 50)),
     computedApproachability: computeApproachability(w),
   }))
 
@@ -29,7 +39,7 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
     case 'match':
       sorted.sort((a, b) =>
         (b.computedMatch - a.computedMatch) ||
-        stableKey(a).localeCompare(stableKey(b))
+        stableKeyCompare(a, b)
       )
       break
     case 'crowd':
@@ -38,11 +48,11 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
         const ar = a.rating ?? null
         const br = b.rating ?? null
         if (ar !== null && br !== null)
-          return (br - ar) || stableKey(a).localeCompare(stableKey(b))
+          return (br - ar) || stableKeyCompare(a, b)
         if (ar !== null) return -1
         if (br !== null) return 1
         return (b.computedApproachability - a.computedApproachability) ||
-          stableKey(a).localeCompare(stableKey(b))
+          stableKeyCompare(a, b)
       })
       break
     case 'rating':
@@ -51,10 +61,10 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
         const ar = a.rating ?? null
         const br = b.rating ?? null
         if (ar !== null && br !== null)
-          return (br - ar) || stableKey(a).localeCompare(stableKey(b))
+          return (br - ar) || stableKeyCompare(a, b)
         if (ar !== null) return -1
         if (br !== null) return 1
-        return (a.name ?? '').localeCompare(b.name ?? '')
+        return (a.name ?? '').localeCompare(b.name ?? '') || stableKeyCompare(a, b)
       })
       break
     case 'value':
@@ -64,16 +74,16 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
         const ap = priceOf(a)
         const bp = priceOf(b)
         if (ap !== null && bp !== null)
-          return (ap - bp) || stableKey(a).localeCompare(stableKey(b))
+          return (ap - bp) || stableKeyCompare(a, b)
         if (ap !== null) return -1
         if (bp !== null) return 1
-        return stableKey(a).localeCompare(stableKey(b))
+        return stableKeyCompare(a, b)
       })
       break
     case 'approachability':
       sorted.sort((a, b) =>
         (b.computedApproachability - a.computedApproachability) ||
-        stableKey(a).localeCompare(stableKey(b))
+        stableKeyCompare(a, b)
       )
       break
     case 'price_asc':
@@ -82,19 +92,18 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
         const ap = priceOf(a)
         const bp = priceOf(b)
         if (ap !== null && bp !== null)
-          return (ap - bp) || stableKey(a).localeCompare(stableKey(b))
+          return (ap - bp) || stableKeyCompare(a, b)
         if (ap !== null) return -1
         if (bp !== null) return 1
-        return stableKey(a).localeCompare(stableKey(b))
+        return stableKeyCompare(a, b)
       })
       break
     default:
       sorted.sort((a, b) =>
         (b.computedMatch - a.computedMatch) ||
-        stableKey(a).localeCompare(stableKey(b))
+        stableKeyCompare(a, b)
       )
   }
 
-  console.log('[sortEngine] result', sortKey, sorted.map(w => `${w.id ?? w.name}(${w.computedMatch ?? '?'})`).join(' > '))
   return sorted
 }

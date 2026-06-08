@@ -149,13 +149,22 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
     return () => el.removeEventListener('scroll', save)
   }, [])
 
-  const scanResult = normalizeScanResult(scannedWines)
-  const scanAttempted = scanResult !== null
-  const allWines = scanResult?.wines?.length ? scanResult.wines : (!scanAttempted ? getWines() : [])
-  const readability = scanResult?.readability ?? 'good'
-  const retakeReasons = scanResult?.retakeReasons ?? []
-  const scanMessage = scanResult?.message
-    || 'I could not identify a specific wine from that image. Try a closer, sharper photo where the full bottle label, shelf tag, or wine-list line is readable.'
+  const { allWines, scanAttempted, readability, retakeReasons, scanMessage } = useMemo(() => {
+    const r = normalizeScanResult(scannedWines)
+    if (!r) return {
+      allWines: getWines(), scanAttempted: false,
+      readability: 'good', retakeReasons: [],
+      scanMessage: 'I could not identify a specific wine from that image. Try a closer, sharper photo where the full bottle label, shelf tag, or wine-list line is readable.',
+    }
+    const wines = r.wines?.length ? r.wines : []
+    return {
+      allWines:      wines.length ? wines : [],
+      scanAttempted: true,
+      readability:   r.readability,
+      retakeReasons: r.retakeReasons,
+      scanMessage:   r.message || 'I could not identify a specific wine from that image. Try a closer, sharper photo where the full bottle label, shelf tag, or wine-list line is readable.',
+    }
+  }, [scannedWines])
 
   const facets = useMemo(() => getFilterFacets(allWines), [allWines])
   const filteredWines = useMemo(() => applyFilters(allWines, filters), [allWines, filters])

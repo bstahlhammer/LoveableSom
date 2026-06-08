@@ -151,6 +151,7 @@ export function useScan() {
         }
       }
       wines = wines.filter(w => !w._catalogId || byCatalogId.get(w._catalogId) === w)
+      wines = wines.map((w, i) => ({ ...w, _scanIdx: i }))
 
       return { wines, readability: bestReadability, retakeReasons: [...retakeReasonSet], message: '', scanType, photoBase64 }
     } catch (e) {

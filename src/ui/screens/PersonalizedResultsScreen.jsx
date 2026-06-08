@@ -235,17 +235,12 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
     return () => el.removeEventListener('scroll', save)
   }, [])
 
-  // DEBUG refs — track what changes between renders to diagnose sort instability
-  const _dbgBase = useRef(null)
-  const _dbgScored = useRef(null)
-  const _dbgFiltered = useRef(null)
-  const _dbgProfile = useRef(null)
-
-  const scanResult = normalizeScanResult(scannedWines)
-  const fromScan = scanResult !== null && scanResult.wines.length > 0
-  const baseWines = fromScan ? scanResult.wines : getWines()
-  const readability = scanResult?.readability ?? 'good'
-  const retakeReasons = scanResult?.retakeReasons ?? []
+  const { baseWines, fromScan, readability, retakeReasons } = useMemo(() => {
+    const r = normalizeScanResult(scannedWines)
+    if (r && r.wines.length > 0)
+      return { baseWines: r.wines, fromScan: true, readability: r.readability, retakeReasons: r.retakeReasons }
+    return { baseWines: getWines(), fromScan: false, readability: 'good', retakeReasons: [] }
+  }, [scannedWines])
 
   const scoredWines = useMemo(() => {
     if (!tasteProfile) return baseWines
@@ -262,17 +257,10 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         matchFlags: flags,
       }
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseWines, tasteProfile])
 
   const facets = useMemo(() => getFilterFacets(scoredWines), [scoredWines])
   const filteredWines = useMemo(() => applyFilters(scoredWines, filters), [scoredWines, filters])
-
-  // DEBUG: log ref changes to diagnose sort instability
-  if (_dbgBase.current !== baseWines)     { console.log('[sort-debug] baseWines ref changed'); _dbgBase.current = baseWines }
-  if (_dbgScored.current !== scoredWines) { console.log('[sort-debug] scoredWines ref changed'); _dbgScored.current = scoredWines }
-  if (_dbgFiltered.current !== filteredWines) { console.log('[sort-debug] filteredWines ref changed'); _dbgFiltered.current = filteredWines }
-  if (_dbgProfile.current !== tasteProfile)   { console.log('[sort-debug] tasteProfile ref changed'); _dbgProfile.current = tasteProfile }
 
   const sortedWines = useMemo(
     () => sortWines(filteredWines, sortKey, tasteProfile),
