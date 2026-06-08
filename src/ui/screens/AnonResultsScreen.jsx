@@ -57,7 +57,6 @@ function SortRationale({ wine, sortKey }) {
       : <div style={{ ...base, color: T.ink300 }}>no critic score on file</div>
   }
   if (sortKey === 'crowd') {
-    if (wine.rating != null) return <div style={{ ...base, color: T.cobalt600 }}>{wine.rating} pts · crowd fav</div>
     const a = wine.computedApproachability ?? 3
     const label = a >= 4 ? 'easy-drinking' : a >= 3 ? 'moderate' : 'bold / tannic'
     return <div style={{ ...base, color: T.ink400 }}>approachability {a}/5 · {label}</div>
@@ -170,11 +169,11 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
   const filteredWines = useMemo(() => applyFilters(allWines, filters), [allWines, filters])
 
   const sortOptions = useMemo(() => [
+    { value: 'match',     label: 'My Taste', highlight: !hasProfile },
     { value: 'crowd',     label: 'Crowd Pleaser' },
     { value: 'rating',    label: 'Critic Score' },
     { value: 'value',     label: 'Best Value' },
     { value: 'price_asc', label: 'Price: Low–High' },
-    { value: 'match',     label: 'My Taste', highlight: !hasProfile },
   ], [hasProfile])
 
   const handleSortChange = (next) => {

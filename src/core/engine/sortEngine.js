@@ -43,17 +43,11 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
       )
       break
     case 'crowd':
-      // Rated wines first (by rating desc); unrated by approachability (crowd-pleasing proxy)
-      sorted.sort((a, b) => {
-        const ar = a.rating ?? null
-        const br = b.rating ?? null
-        if (ar !== null && br !== null)
-          return (br - ar) || stableKeyCompare(a, b)
-        if (ar !== null) return -1
-        if (br !== null) return 1
-        return (b.computedApproachability - a.computedApproachability) ||
-          stableKeyCompare(a, b)
-      })
+      // Sort by approachability — smooth, easy-drinking wines first
+      sorted.sort((a, b) =>
+        (b.computedApproachability - a.computedApproachability) ||
+        stableKeyCompare(a, b)
+      )
       break
     case 'rating':
       // Rated wines first (by rating desc); unrated alphabetically so order is clearly distinct
