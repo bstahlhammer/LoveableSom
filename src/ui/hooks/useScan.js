@@ -227,9 +227,31 @@ function splitImageIntoTiles(img) {
   return tiles
 }
 
+function isNetworkError(e) {
+  if (e?.name === 'AbortError') return false
+  const msg = (e?.message ?? '').toLowerCase()
+  return e instanceof TypeError || msg.includes('network') || msg.includes('failed to fetch') || msg.includes('connection')
+}
+
 // Scan one tile against the API, streaming individual wine objects as they arrive.
 // Pass enhanced=true to use the Sonnet fallback model on the server.
 async function scanTile(base64, mimeType, signal, onWine, enhanced = false) {
+  const MAX_RETRIES = 2
+  let lastError
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (signal.aborted) throw new Error('Scan cancelled')
+    if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt))
+    try {
+      return await _scanTileOnce(base64, mimeType, signal, onWine, enhanced)
+    } catch (e) {
+      lastError = e
+      if (!isNetworkError(e) || signal.aborted) throw e
+    }
+  }
+  throw lastError
+}
+
+async function _scanTileOnce(base64, mimeType, signal, onWine, enhanced) {
   const res = await fetch('/api/scan', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

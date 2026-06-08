@@ -518,7 +518,7 @@ export default function App() {
               setResultsViewState(prev => ({ ...prev, personalizedResults: null, anonResults: null }))
               setResultsViewKey(k => k + 1)
               const { wines: rawWines } = await loadScan(scanRow.id)
-              const wines = (rawWines || []).map(w => ({ ...w, imageUrl: w.imageUrl ?? findWineImage(w.name) }))
+              const wines = (rawWines || []).map((w, i) => ({ ...w, _scanIdx: i, imageUrl: w.imageUrl ?? findWineImage(w.name) }))
               if (wines?.length) {
                 setScannedWines({ wines, readability: 'good', retakeReasons: [], message: '' })
                 setHasScanned(true)
