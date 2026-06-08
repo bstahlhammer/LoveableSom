@@ -70,7 +70,9 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
     case 'value':
       // isValue wines first, then priced cheap-to-expensive, then unpriced
       sorted.sort((a, b) => {
-        if (a.isValue !== b.isValue) return b.isValue ? 1 : -1
+        // Normalize to boolean so undefined !== false doesn't produce a non-transitive comparator
+        const av = !!a.isValue; const bv = !!b.isValue
+        if (av !== bv) return bv ? 1 : -1
         const ap = priceOf(a)
         const bp = priceOf(b)
         if (ap !== null && bp !== null)
