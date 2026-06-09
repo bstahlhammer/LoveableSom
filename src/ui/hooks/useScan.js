@@ -275,8 +275,11 @@ async function scanTile(base64, mimeType, signal, onWine, enhanced = false) {
 
   const raw = parser.getBuffer()
 
-  if (safeJsonParse(raw.trim().split('\n').pop() || '')?.__stream_error__) {
-    throw new Error('Vision analysis failed on tile')
+  const lastLine = raw.trim().split('\n').pop() || ''
+  const streamErr = safeJsonParse(lastLine)
+  if (streamErr?.__stream_error__) {
+    console.error('[scanTile] server error:', streamErr.error ?? '(no message)', 'status:', streamErr.status ?? '(no status)')
+    throw new Error(streamErr.error ? `Scan API error: ${streamErr.error}` : 'Vision analysis failed on tile')
   }
 
   const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()

@@ -110,8 +110,9 @@ export const Route = createFileRoute('/api/scan')({
               }
             } catch (err) {
               console.error('Anthropic streaming error:', err)
-              // Signal the client that something went wrong
-              controller.enqueue(encoder.encode('\n{"__stream_error__":true}'))
+              const errMsg = (err as any)?.message ?? String(err)
+              const errStatus = (err as any)?.status ?? null
+              controller.enqueue(encoder.encode('\n' + JSON.stringify({ __stream_error__: true, error: errMsg, status: errStatus })))
             } finally {
               controller.close()
             }
