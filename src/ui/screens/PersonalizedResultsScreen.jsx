@@ -133,10 +133,11 @@ function SortRationale({ wine, sortKey }) {
 }
 
 function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
-  const score = wine.adjustedMatch ?? wine.computedMatch ?? 50
-  const tag = getTag(score)
-  const cardBg = score >= 70 ? 'white' : score >= 50 ? T.ink50 : 'oklch(98% 0.02 30)'
-  const borderColor = score < 50 ? T.scarlet300 : T.ink150
+  const score = wine.adjustedMatch ?? wine.computedMatch ?? null
+  const noData = score === null
+  const tag = noData ? null : getTag(score)
+  const cardBg = noData ? T.ink50 : score >= 70 ? 'white' : score >= 50 ? T.ink50 : 'oklch(98% 0.02 30)'
+  const borderColor = (!noData && score < 50) ? T.scarlet300 : T.ink150
 
   return (
     <div
@@ -146,7 +147,7 @@ function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
         background: cardBg,
         border: `1px solid ${borderColor}`,
         borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 8,
-        opacity: score < 50 ? 0.85 : 1,
+        opacity: (!noData && score < 50) ? 0.85 : 1,
         cursor: 'pointer',
       }}
     >
@@ -170,7 +171,7 @@ function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
           </div>
           <div style={{
             fontFamily: T.fontDisplay, fontSize: 16, color: T.ink900, lineHeight: 1.2,
-            textDecoration: score < 50 ? 'line-through' : 'none',
+            textDecoration: (!noData && score < 50) ? 'line-through' : 'none',
             textDecorationColor: T.scarlet400,
           }}>
             {wine.name}{wine.vintage ? ` ${wine.vintage}` : ''}
@@ -193,8 +194,11 @@ function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
           </button>
         </div>
       </div>
-      <TwoSignalBars tasteFit={score} wePoints={wine.rating ?? null} />
-      {wine.matchIsLow && <ConfidencePill flags={wine.matchFlags ?? []} wine={wine} />}
+      {noData
+        ? <div style={{ fontSize: 11, color: T.ink300, fontFamily: T.fontBody, fontStyle: 'italic' }}>No taste data available — we can't assess fit for your palate</div>
+        : <TwoSignalBars tasteFit={score} wePoints={wine.rating ?? null} />
+      }
+      {!noData && wine.matchIsLow && <ConfidencePill flags={wine.matchFlags ?? []} wine={wine} />}
       {wine.tasting && (
         <p style={{ fontSize: 12, color: T.ink500, margin: 0, lineHeight: 1.5, fontFamily: T.fontBody, fontStyle: 'italic' }}>
           {wine.tasting}
@@ -264,7 +268,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
     return baseWines.map(w => {
       const rawRaw = computeMatch(w, tasteProfile)
       const raw = Number.isFinite(rawRaw) ? rawRaw : null
-      const { score: adjusted, isLow, reason, flags } = computeMatchWithConfidence({ ...w, computedMatch: raw ?? 50 }, tasteProfile)
+      const { score: adjusted, isLow, reason, flags } = computeMatchWithConfidence({ ...w, computedMatch: raw }, tasteProfile)
       console.log('[score debug]', w.name, '| grape:', w.grape, '| body:', w.body, 'tannin:', w.tannin, '| rawMatch:', rawRaw, '→ adjusted:', adjusted)
       return {
         ...w,

@@ -370,8 +370,16 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           </div>
         )}
 
+        {/* No data notice — when we can't score the wine */}
+        {tasteProfile && matchScore === null && (
+          <div style={{ background: T.ink50, borderRadius: 14, padding: '12px 16px', marginBottom: 14, border: `1px solid ${T.ink150}` }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.ink400, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: T.fontBody, marginBottom: 4 }}>Match score unavailable</div>
+            <div style={{ fontSize: 13, color: T.ink600, lineHeight: 1.5, fontFamily: T.fontBody }}>We don't have enough taste data on this wine to assess how well it fits your palate.</div>
+          </div>
+        )}
+
         {/* Match summary — why this matches your taste */}
-        {tasteProfile && matchExplain && matchExplain.axes.length > 0 && (
+        {tasteProfile && matchScore !== null && matchExplain && matchExplain.axes.length > 0 && (
           <div style={{ background: T.forest50, borderRadius: 14, padding: '14px 16px', marginBottom: 14, border: `1px solid ${T.forest100}` }}>
             <SectionLabel>Why this match</SectionLabel>
             <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -404,7 +412,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
         )}
 
         {/* About this score — low confidence callout */}
-        {matchIsLow && (
+        {matchScore !== null && matchIsLow && (
           <div style={{ marginBottom: 14 }}>
             <button
               onClick={() => setShowAboutScore(s => !s)}
@@ -500,7 +508,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
         )}
 
         {/* Honest take / mismatch */}
-        {tasteProfile && mismatch && mismatch.reasons.length > 0 && (
+        {tasteProfile && matchScore !== null && mismatch && mismatch.reasons.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <button
               onClick={() => setShowHonest(s => !s)}
