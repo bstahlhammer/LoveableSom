@@ -120,13 +120,8 @@ export function useScan() {
       )
       wines = wines.map((w, i) => {
         const r = catalogResults[i]
-        if (r.status !== 'fulfilled' || !r.value) {
-          console.log('[scan debug] NO CATALOG MATCH:', w.name)
-          return w
-        }
-        const merged = mergeCatalogWine(w, r.value)
-        console.log('[scan debug] CATALOG MATCH:', w.name, '→ body:', merged.body, 'tannin:', merged.tannin, 'sweetness:', merged.sweetness, 'acidity:', merged.acidity)
-        return merged
+        if (r.status !== 'fulfilled' || !r.value) return w
+        return mergeCatalogWine(w, r.value)
       })
 
       // Drop edge fragments the catalog couldn't confirm
