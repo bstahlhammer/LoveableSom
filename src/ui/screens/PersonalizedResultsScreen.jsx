@@ -49,6 +49,11 @@ function getTag(score) {
   return getMatchTag(score, T)
 }
 
+// Same score priority as WineRowCard + TwoSignalBars (adjustedMatch first)
+function wineScore(w) {
+  return w.adjustedMatch ?? w.computedMatch ?? 0
+}
+
 function pillLabel(flags, hasFlavorData) {
   if (!hasFlavorData)                              return 'No flavor data'
   const q = flags.includes('quality')
@@ -272,7 +277,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
 
   const topMatch = useMemo(() => {
     if (!tasteProfile || filteredWines.length === 0) return 0
-    return Math.max(...filteredWines.map(w => w.computedMatch ?? 0))
+    return Math.max(...filteredWines.map(wineScore))
   }, [filteredWines, tasteProfile])
   const noStrongMatches = tasteProfile && filteredWines.length > 0 && topMatch < 80
 
@@ -285,8 +290,10 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
 
   const showRetakePanel = fromScan && readability !== 'good'
 
-  const strongFits = sortedWines.filter(w => (w.computedMatch ?? 0) >= 70).length
-  const toSkip = sortedWines.filter(w => (w.computedMatch ?? 0) < 50).length
+  // Thresholds mirror TwoSignalBars: Strong ≥ 82, Decent ≥ 66 (= round(82 * 0.80))
+  const strongFits = sortedWines.filter(w => wineScore(w) >= 82).length
+  const decentFits = sortedWines.filter(w => wineScore(w) >= 66 && wineScore(w) < 82).length
+  const toSkip = sortedWines.filter(w => wineScore(w) < 50).length
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: T.ink0, position: 'relative', overflow: 'hidden' }}>
@@ -304,9 +311,11 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         <h1 style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 28, lineHeight: 1.1, margin: '0 0 6px', letterSpacing: '-0.01em', color: T.ink900 }}>
           {strongFits > 0
             ? <><em style={{ color: T.forest500 }}>{strongFits} strong fit{strongFits !== 1 ? 's' : ''}</em>{toSkip > 0 ? `, ${toSkip} to skip.` : '.'}</>
-            : noStrongMatches
-              ? <><em style={{ color: T.scarlet500 }}>Nothing here</em> is truly in your lane.</>
-              : <>Your matches.</>
+            : decentFits > 0
+              ? <><em style={{ color: T.cobalt500 }}>{decentFits} decent fit{decentFits !== 1 ? 's' : ''}.</em> Nothing we'd call a sure thing.</>
+              : noStrongMatches
+                ? <><em style={{ color: T.scarlet500 }}>Nothing here</em> is truly in your lane.</>
+                : <>Your matches.</>
           }
         </h1>
         <p style={{ fontSize: 12, color: T.ink400, margin: 0, lineHeight: 1.45, fontFamily: T.fontBody }}>
