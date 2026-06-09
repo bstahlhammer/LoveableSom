@@ -1,4 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+
+// DEBUG: log exact URL of any 406 so we can find the source — remove once identified
+if (typeof window !== 'undefined') {
+  const _f = window.fetch
+  window.fetch = async (...a) => { const r = await _f(...a); if (r.status === 406) console.warn('[406 URL]', typeof a[0] === 'string' ? a[0] : a[0]?.url ?? String(a[0])); return r }
+}
 import {
   inferPalateFromRatings,
   nearestTasteProfile,
