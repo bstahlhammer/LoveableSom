@@ -191,17 +191,6 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
     [filteredWines, sortKey, tasteProfile, hasProfile]
   )
 
-  // Forensic: log whenever the same sort key gives a different result
-  const _prevSortRef = useRef({})
-  useEffect(() => {
-    const top5 = sortedWines.slice(0, 5).map(w => `${w._scanIdx ?? '?'}:${(w.name ?? '?').slice(0, 18)}`)
-    const prev = _prevSortRef.current[sortKey]
-    if (prev && prev !== top5.join('|')) {
-      console.error(`[SORT-BUG][Anon] "${sortKey}" changed!\nWAS: ${prev}\nNOW: ${top5.join('|')}`)
-    }
-    _prevSortRef.current[sortKey] = top5.join('|')
-  }, [sortedWines, sortKey])
-
   const lowConfidenceCount = useMemo(
     () => allWines.filter(w => typeof w.confidence === 'number' && w.confidence < 60).length,
     [allWines]
