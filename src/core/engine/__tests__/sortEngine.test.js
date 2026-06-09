@@ -134,3 +134,44 @@ describe('sortWines — all modes are distinct for mixed data', () => {
     expect(unique.size).toBeGreaterThanOrEqual(3)
   })
 })
+
+// ─── Block wine regression: all same price, same approachability, no rating ───
+// These wines tie on every primary criterion. The tiebreaker must ensure that
+// different sort types produce DIFFERENT visual orderings so the user can see
+// the sort buttons are actually doing something.
+describe('sortWines — identical-data tiebreakers (Block wine scenario)', () => {
+  // All three wines: $12.99, no catalog rating, no flavor data (defaults to approachability 4/5)
+  const cabSauv    = wine({ name: 'Block Red Wine Cabernet Sauvignon', priceNum: 12.99, rating: null })
+  const chardonnay = wine({ name: 'Block White Wine Chardonnay',       priceNum: 12.99, rating: null })
+  const sauvBlanc  = wine({ name: 'Block White Wine Sauvignon Blanc',  priceNum: 12.99, rating: null })
+  const blockWines = [cabSauv, chardonnay, sauvBlanc]
+
+  it('crowd sort (A→Z tiebreaker) puts Cabernet Sauvignon before Sauvignon Blanc', () => {
+    const result = sortWines(blockWines, 'crowd', null)
+    const names = result.map(w => w.name)
+    expect(names.indexOf('Block Red Wine Cabernet Sauvignon'))
+      .toBeLessThan(names.indexOf('Block White Wine Sauvignon Blanc'))
+  })
+
+  it('match sort (Z→A tiebreaker) puts Sauvignon Blanc before Cabernet Sauvignon', () => {
+    const result = sortWines(blockWines, 'match', null)
+    const names = result.map(w => w.name)
+    expect(names.indexOf('Block White Wine Sauvignon Blanc'))
+      .toBeLessThan(names.indexOf('Block Red Wine Cabernet Sauvignon'))
+  })
+
+  it('crowd and match sorts produce OPPOSITE orders for these wines', () => {
+    const crowd = sortWines(blockWines, 'crowd', null).map(w => w.name)
+    const match = sortWines(blockWines, 'match', null).map(w => w.name)
+    expect(crowd).not.toEqual(match)
+    // crowd is A→Z, match is Z→A — first and last must be swapped
+    expect(crowd[0]).toBe(match[match.length - 1])
+    expect(crowd[crowd.length - 1]).toBe(match[0])
+  })
+
+  it('price_asc and crowd sorts produce DIFFERENT orders', () => {
+    const byPrice = sortWines(blockWines, 'price_asc', null).map(w => w.name)
+    const byCrowd = sortWines(blockWines, 'crowd',     null).map(w => w.name)
+    expect(byPrice).not.toEqual(byCrowd)
+  })
+})
