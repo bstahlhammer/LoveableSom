@@ -230,19 +230,12 @@ const SORT_SUBTITLE = {
   price_asc: 'price: low–high',
 }
 
-export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfile, buyingFor, scanIntent, scannedWines, onWineSelect, scanId, mealAppeal, persistedState, onPersistState }) {
-  const [sortKey, setSortKey] = useState(() => persistedState?.sortKey ?? defaultSortKey(buyingFor, scanIntent))
+export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfile, buyingFor, scanIntent, scannedWines, onWineSelect, scanId, mealAppeal, sortKey, onSortChange }) {
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [filterOpen, setFilterOpen] = useState(false)
   const [showOnlySaved, setShowOnlySaved] = useState(false)
   const shortlist = useShortlist()
   const scrollRef = useRef(null)
-
-  // Keep a stable ref to onPersistState so the effect below doesn't re-run on every App render
-  const onPersistRef = useRef(onPersistState)
-  useEffect(() => { onPersistRef.current = onPersistState })
-  // Persist sort key as a side-effect after render — decoupled from the state update
-  useEffect(() => { onPersistRef.current?.({ sortKey }) }, [sortKey])
 
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
 
@@ -445,7 +438,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
           <div style={{ padding: '10px 16px 80px' }}>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { setSortKey(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
               <button
                 onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
                 style={{

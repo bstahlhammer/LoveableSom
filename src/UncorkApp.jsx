@@ -158,6 +158,19 @@ function deriveProfile(quizAnswers) {
   }
 }
 
+function anonDefaultSort(buyingFor, scanIntent) {
+  const tags = scanIntent?.tags ?? []
+  if (tags.includes('splurge') || buyingFor === 'gift') return 'value'
+  return 'crowd'
+}
+
+function personalizedDefaultSort(buyingFor, scanIntent) {
+  const tags = scanIntent?.tags ?? []
+  if (tags.includes('splurge') || buyingFor === 'gift') return 'value'
+  if (tags.includes('crowd') || buyingFor === 'group') return 'crowd'
+  return 'match'
+}
+
 export default function App() {
   const auth = useAuth()
   const [screen,       setScreen]       = useState('home')
@@ -427,8 +440,11 @@ export default function App() {
             buyingFor={buyingFor}
             scanId={activeScan?.scanId}
             onWineSelect={w => handleWineSelect(w, 'anonResults')}
-            persistedState={resultsViewState.anonResults}
-            onPersistState={s => setResultsViewState(prev => ({ ...prev, anonResults: s }))}
+            sortKey={resultsViewState.anonResults?.sortKey ?? anonDefaultSort(buyingFor, scanIntent)}
+            onSortChange={k => setResultsViewState(prev => ({
+              ...prev,
+              anonResults: { ...(prev.anonResults ?? {}), sortKey: k },
+            }))}
           />
         )
       case 'quizIntro':
@@ -490,8 +506,11 @@ export default function App() {
             scanId={activeScan?.scanId}
             mealAppeal={quizAnswers.guidedAnswers?.mealAppeal ?? quizAnswers.mealAppeal ?? null}
             onWineSelect={w => handleWineSelect(w, 'personalizedResults')}
-            persistedState={resultsViewState.personalizedResults}
-            onPersistState={s => setResultsViewState(prev => ({ ...prev, personalizedResults: s }))}
+            sortKey={resultsViewState.personalizedResults?.sortKey ?? personalizedDefaultSort(buyingFor, scanIntent)}
+            onSortChange={k => setResultsViewState(prev => ({
+              ...prev,
+              personalizedResults: { ...(prev.personalizedResults ?? {}), sortKey: k },
+            }))}
           />
         )
       case 'wineDetail':

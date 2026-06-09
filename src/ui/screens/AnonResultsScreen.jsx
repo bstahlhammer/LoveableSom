@@ -141,9 +141,8 @@ const SORT_SUBTITLE = {
   price_asc: 'price: low–high',
 }
 
-export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tasteProfile, scannedWines, scanIntent, buyingFor, scanId, persistedState, onPersistState }) {
+export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tasteProfile, scannedWines, scanIntent, buyingFor, scanId, sortKey, onSortChange }) {
   const hasProfile = !!tasteProfile
-  const [sortKey, setSortKey] = useState(() => persistedState?.sortKey ?? defaultSortKey(buyingFor, scanIntent))
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [filterOpen, setFilterOpen] = useState(false)
   const [showOnlySaved, setShowOnlySaved] = useState(false)
@@ -151,12 +150,6 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
   const [menuOpen, setMenuOpen] = useState(false)
   const shortlist = useShortlist()
   const scrollRef = useRef(null)
-
-  // Keep a stable ref to onPersistState so the effect below doesn't re-run on every App render
-  const onPersistRef = useRef(onPersistState)
-  useEffect(() => { onPersistRef.current = onPersistState })
-  // Persist sort key as a side-effect after render — decoupled from the state update
-  useEffect(() => { onPersistRef.current?.({ sortKey }) }, [sortKey])
 
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
 
@@ -204,7 +197,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
       return
     }
     setShowMatchPrompt(false)
-    setSortKey(next)
+    onSortChange(next)
     if (scrollRef.current) scrollRef.current.scrollTop = 0
   }
 
