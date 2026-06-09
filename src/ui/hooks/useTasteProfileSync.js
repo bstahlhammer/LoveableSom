@@ -26,7 +26,7 @@ export function useTasteProfileSync(userId) {
           .from('profiles')
           .select('taste_profile')
           .eq('user_id', userId)
-          .single()
+          .maybeSingle()
         if (!error && data?.taste_profile) {
           try { localStorage.setItem(KEY, JSON.stringify(data.taste_profile)) } catch {}
           return { profile: data.taste_profile, error: null }
