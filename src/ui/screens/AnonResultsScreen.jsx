@@ -127,7 +127,7 @@ function defaultSortKey(buyingFor, scanIntent) {
 
 export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tasteProfile, scannedWines, scanIntent, buyingFor, scanId, persistedState, onPersistState }) {
   const hasProfile = !!tasteProfile
-  const [sortKey, setSortKey] = useState(() => defaultSortKey(buyingFor, scanIntent))
+  const [sortKey, setSortKey] = useState(() => persistedState?.sortKey ?? defaultSortKey(buyingFor, scanIntent))
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [filterOpen, setFilterOpen] = useState(false)
   const [showOnlySaved, setShowOnlySaved] = useState(false)
@@ -136,7 +136,11 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
   const shortlist = useShortlist()
   const scrollRef = useRef(null)
 
-  const setSortKeyAndPersist = useCallback(k => { setSortKey(k) }, [])
+  const setSortKeyAndPersist = useCallback(k => {
+    setSortKey(k)
+    onPersistState?.({ sortKey: k })
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
+  }, [onPersistState])
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
 
   useEffect(() => {
