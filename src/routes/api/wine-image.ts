@@ -40,7 +40,7 @@ export const Route = createFileRoute('/api/wine-image')({
             .from('wine_catalog')
             .select('image_url, image_fetched_at')
             .eq('id', catalogId)
-            .single()
+            .maybeSingle()
           idRow = data ?? null
           if (data?.image_url) return Response.json({ imageUrl: data.image_url })
         }

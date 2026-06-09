@@ -178,14 +178,14 @@ export async function lookupWineCatalog(name) {
   try {
     const client = _supabase()
 
-    // 1. Exact match
+    // 1. Exact match — maybeSingle() returns null (not 406) when no row is found
     const { data: exact, error: e1 } = await client
       .from('wine_catalog')
       .select('id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color')
       .ilike('name', name)
       .limit(1)
-      .single()
-    if (e1 && e1.code !== 'PGRST116') console.error('[catalog] exact match error:', e1.message, '| name:', name)
+      .maybeSingle()
+    if (e1) console.error('[catalog] exact match error:', e1.message, '| name:', name)
     if (exact) return _catalogToWine(exact)
 
     // 2. Full-text search
