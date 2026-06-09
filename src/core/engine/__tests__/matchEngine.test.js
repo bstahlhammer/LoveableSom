@@ -16,15 +16,14 @@ describe('computeMatch', () => {
     expect(score).toBeLessThan(70)
   })
 
-  it('returns a number (not NaN) when wine has null axes', () => {
+  it('returns null when wine has null axes and no character data', () => {
     const noData = { id: 2, body: null, tannin: null, sweetness: null, acidity: null, grape: 'Unknown' }
     const score = computeMatch(noData, BASE_PROFILE)
-    expect(typeof score).toBe('number')
-    expect(Number.isNaN(score)).toBe(false)
+    expect(score).toBeNull()
   })
 
-  it('returns 50 when no profile provided', () => {
-    expect(computeMatch(BASE_WINE, null)).toBe(50)
+  it('returns null when no profile provided', () => {
+    expect(computeMatch(BASE_WINE, null)).toBeNull()
   })
 
   it('clamps score to 0–100 range', () => {
