@@ -133,7 +133,7 @@ function SortRationale({ wine, sortKey }) {
 }
 
 function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
-  const score = [wine.adjustedMatch, wine.computedMatch, wine.rating, 75].find(v => Number.isFinite(v)) ?? 75
+  const score = wine.adjustedMatch ?? wine.computedMatch ?? 50
   const tag = getTag(score)
   const cardBg = score >= 70 ? 'white' : score >= 50 ? T.ink50 : 'oklch(98% 0.02 30)'
   const borderColor = score < 50 ? T.scarlet300 : T.ink150

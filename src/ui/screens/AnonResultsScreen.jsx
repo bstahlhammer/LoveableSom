@@ -38,6 +38,14 @@ function normalizeScanResult(scannedWines) {
 }
 
 function ScoreBar({ score }) {
+  if (score == null) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, height: 5, background: T.ink100, borderRadius: 3 }} />
+        <span style={{ fontSize: 11, fontWeight: 600, color: T.ink300, minWidth: 32, textAlign: 'right', fontFamily: T.fontBody }}>—</span>
+      </div>
+    )
+  }
   const tone = fitBarTone(score, T)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -70,8 +78,8 @@ function SortRationale({ wine, sortKey }) {
 }
 
 function AnonWineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
-  const score = wine.rating ?? wine.crowd_score ?? 75
-  const cardBg = score >= 70 ? 'white' : T.ink50
+  const score = wine.rating ?? null
+  const cardBg = (score ?? 0) >= 70 ? 'white' : T.ink50
 
   return (
     <div
