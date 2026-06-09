@@ -39,6 +39,8 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
     case 'match':
       sorted.sort((a, b) =>
         (b.computedMatch - a.computedMatch) ||
+        (b.computedApproachability - a.computedApproachability) ||
+        ((b.rating ?? -1) - (a.rating ?? -1)) ||
         stableKeyCompare(a, b)
       )
       break
@@ -46,6 +48,7 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
       // Sort by approachability — smooth, easy-drinking wines first
       sorted.sort((a, b) =>
         (b.computedApproachability - a.computedApproachability) ||
+        ((b.rating ?? -1) - (a.rating ?? -1)) ||
         stableKeyCompare(a, b)
       )
       break
@@ -55,14 +58,14 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
         const ar = a.rating ?? null
         const br = b.rating ?? null
         if (ar !== null && br !== null)
-          return (br - ar) || stableKeyCompare(a, b)
+          return (br - ar) || (b.computedApproachability - a.computedApproachability) || stableKeyCompare(a, b)
         if (ar !== null) return -1
         if (br !== null) return 1
         return (a.name ?? '').localeCompare(b.name ?? '') || stableKeyCompare(a, b)
       })
       break
     case 'value':
-      // isValue wines first, then priced cheap-to-expensive, then unpriced
+      // isValue wines first, then priced cheap-to-expensive, then by rating
       sorted.sort((a, b) => {
         // Normalize to boolean so undefined !== false doesn't produce a non-transitive comparator
         const av = !!a.isValue; const bv = !!b.isValue
@@ -70,15 +73,16 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
         const ap = priceOf(a)
         const bp = priceOf(b)
         if (ap !== null && bp !== null)
-          return (ap - bp) || stableKeyCompare(a, b)
+          return (ap - bp) || ((b.rating ?? -1) - (a.rating ?? -1)) || stableKeyCompare(a, b)
         if (ap !== null) return -1
         if (bp !== null) return 1
-        return stableKeyCompare(a, b)
+        return ((b.rating ?? -1) - (a.rating ?? -1)) || stableKeyCompare(a, b)
       })
       break
     case 'approachability':
       sorted.sort((a, b) =>
         (b.computedApproachability - a.computedApproachability) ||
+        ((b.rating ?? -1) - (a.rating ?? -1)) ||
         stableKeyCompare(a, b)
       )
       break
@@ -88,15 +92,16 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
         const ap = priceOf(a)
         const bp = priceOf(b)
         if (ap !== null && bp !== null)
-          return (ap - bp) || stableKeyCompare(a, b)
+          return (ap - bp) || (b.computedApproachability - a.computedApproachability) || stableKeyCompare(a, b)
         if (ap !== null) return -1
         if (bp !== null) return 1
-        return stableKeyCompare(a, b)
+        return (b.computedApproachability - a.computedApproachability) || stableKeyCompare(a, b)
       })
       break
     default:
       sorted.sort((a, b) =>
         (b.computedMatch - a.computedMatch) ||
+        (b.computedApproachability - a.computedApproachability) ||
         stableKeyCompare(a, b)
       )
   }

@@ -125,6 +125,14 @@ function defaultSortKey(buyingFor, scanIntent) {
   return 'crowd'  // default: crowd-pleaser works for group, 'me' without a profile, and everything else
 }
 
+const SORT_SUBTITLE = {
+  match:     'taste fit',
+  crowd:     'crowd & critic score',
+  rating:    'critic score',
+  value:     'best value',
+  price_asc: 'price: low–high',
+}
+
 export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tasteProfile, scannedWines, scanIntent, buyingFor, scanId, persistedState, onPersistState }) {
   const hasProfile = !!tasteProfile
   const [sortKey, setSortKey] = useState(() => persistedState?.sortKey ?? defaultSortKey(buyingFor, scanIntent))
@@ -136,11 +144,12 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
   const shortlist = useShortlist()
   const scrollRef = useRef(null)
 
-  const setSortKeyAndPersist = useCallback(k => {
-    setSortKey(k)
-    onPersistState?.({ sortKey: k })
-    if (scrollRef.current) scrollRef.current.scrollTop = 0
-  }, [onPersistState])
+  // Keep a stable ref to onPersistState so the effect below doesn't re-run on every App render
+  const onPersistRef = useRef(onPersistState)
+  useEffect(() => { onPersistRef.current = onPersistState })
+  // Persist sort key as a side-effect after render — decoupled from the state update
+  useEffect(() => { onPersistRef.current?.({ sortKey }) }, [sortKey])
+
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
 
   useEffect(() => {
@@ -187,7 +196,8 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
       return
     }
     setShowMatchPrompt(false)
-    setSortKeyAndPersist(next)
+    setSortKey(next)
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
   }
 
   const sortedWines = useMemo(
@@ -267,7 +277,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
             ? 'Take another photo to get a reliable result'
             : !scanAttempted
               ? 'Scores based on crowd & critic ratings'
-              : `Sorted by crowd & critic score${scanIntent?.label ? ` · ${scanIntent.label}` : ''} · tap any to explore`
+              : `Sorted by ${SORT_SUBTITLE[sortKey] ?? 'crowd & critic score'}${scanIntent?.label ? ` · ${scanIntent.label}` : ''} · tap any to explore`
           }
         </p>
       </div>

@@ -218,6 +218,14 @@ function defaultSortKey(buyingFor, scanIntent) {
   return 'match'
 }
 
+const SORT_SUBTITLE = {
+  match:     'taste fit',
+  crowd:     'crowd score',
+  rating:    'critic score',
+  value:     'best value',
+  price_asc: 'price: low–high',
+}
+
 export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfile, buyingFor, scanIntent, scannedWines, onWineSelect, scanId, mealAppeal, persistedState, onPersistState }) {
   const [sortKey, setSortKey] = useState(() => persistedState?.sortKey ?? defaultSortKey(buyingFor, scanIntent))
   const [filters, setFilters] = useState(EMPTY_FILTERS)
@@ -226,11 +234,12 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   const shortlist = useShortlist()
   const scrollRef = useRef(null)
 
-  const setSortKeyAndPersist = useCallback(k => {
-    setSortKey(k)
-    onPersistState?.({ sortKey: k })
-    if (scrollRef.current) scrollRef.current.scrollTop = 0
-  }, [onPersistState])
+  // Keep a stable ref to onPersistState so the effect below doesn't re-run on every App render
+  const onPersistRef = useRef(onPersistState)
+  useEffect(() => { onPersistRef.current = onPersistState })
+  // Persist sort key as a side-effect after render — decoupled from the state update
+  useEffect(() => { onPersistRef.current?.({ sortKey }) }, [sortKey])
+
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
 
   useEffect(() => {
@@ -319,7 +328,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
           }
         </h1>
         <p style={{ fontSize: 12, color: T.ink400, margin: 0, lineHeight: 1.45, fontFamily: T.fontBody }}>
-          Ranked by taste fit
+          {sortKey === 'match' ? 'Ranked by' : 'Sorted by'} {SORT_SUBTITLE[sortKey] ?? 'taste fit'}
           {mealAppeal ? ` · matched to "${mealAppeal}"` : ''}
           {scanIntent?.label ? ` · ${scanIntent.label}` : ''}
           {tasteProfile?.name ? ` · ${tasteProfile.name.replace(/^The\s+/i, '')}` : ''}
@@ -432,7 +441,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
           <div style={{ padding: '10px 16px 80px' }}>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={setSortKeyAndPersist} />
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { setSortKey(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
               <button
                 onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
                 style={{
