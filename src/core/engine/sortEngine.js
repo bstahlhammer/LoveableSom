@@ -37,72 +37,72 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
 
   switch (sortKey) {
     case 'match':
+      // Z→A tiebreaker — opposite of 'crowd' so equal wines visibly flip between these two sorts
       sorted.sort((a, b) =>
         (b.computedMatch - a.computedMatch) ||
         (b.computedApproachability - a.computedApproachability) ||
         ((b.rating ?? -1) - (a.rating ?? -1)) ||
-        stableKeyCompare(a, b)
+        (b.name ?? '').localeCompare(a.name ?? '')
       )
       break
     case 'crowd':
-      // Sort by approachability — smooth, easy-drinking wines first
+      // A→Z tiebreaker — opposite of 'match' so equal wines visibly flip between these two sorts
       sorted.sort((a, b) =>
         (b.computedApproachability - a.computedApproachability) ||
         ((b.rating ?? -1) - (a.rating ?? -1)) ||
-        stableKeyCompare(a, b)
+        (a.name ?? '').localeCompare(b.name ?? '')
       )
       break
     case 'rating':
-      // Rated wines first (by rating desc); unrated alphabetically so order is clearly distinct
+      // A→Z tiebreaker on all paths — rated wines ranked by score, unrated alphabetically
       sorted.sort((a, b) => {
         const ar = a.rating ?? null
         const br = b.rating ?? null
         if (ar !== null && br !== null)
-          return (br - ar) || (b.computedApproachability - a.computedApproachability) || stableKeyCompare(a, b)
+          return (br - ar) || (b.computedApproachability - a.computedApproachability) || (a.name ?? '').localeCompare(b.name ?? '')
         if (ar !== null) return -1
         if (br !== null) return 1
-        return (a.name ?? '').localeCompare(b.name ?? '') || stableKeyCompare(a, b)
+        return (a.name ?? '').localeCompare(b.name ?? '')
       })
       break
     case 'value':
-      // isValue wines first, then priced cheap-to-expensive, then by rating
+      // Z→A tiebreaker — isValue first, then cheap, then rated, then Z→A name
       sorted.sort((a, b) => {
-        // Normalize to boolean so undefined !== false doesn't produce a non-transitive comparator
         const av = !!a.isValue; const bv = !!b.isValue
         if (av !== bv) return bv ? 1 : -1
         const ap = priceOf(a)
         const bp = priceOf(b)
         if (ap !== null && bp !== null)
-          return (ap - bp) || ((b.rating ?? -1) - (a.rating ?? -1)) || stableKeyCompare(a, b)
+          return (ap - bp) || ((b.rating ?? -1) - (a.rating ?? -1)) || (b.name ?? '').localeCompare(a.name ?? '')
         if (ap !== null) return -1
         if (bp !== null) return 1
-        return ((b.rating ?? -1) - (a.rating ?? -1)) || stableKeyCompare(a, b)
+        return ((b.rating ?? -1) - (a.rating ?? -1)) || (b.name ?? '').localeCompare(a.name ?? '')
       })
       break
     case 'approachability':
       sorted.sort((a, b) =>
         (b.computedApproachability - a.computedApproachability) ||
         ((b.rating ?? -1) - (a.rating ?? -1)) ||
-        stableKeyCompare(a, b)
+        (a.name ?? '').localeCompare(b.name ?? '')
       )
       break
     case 'price_asc':
-      // Priced wines cheap-to-expensive first; unpriced at the bottom
+      // Z→A tiebreaker — priced cheap-to-expensive, then rated, then Z→A name (differs from 'crowd' A→Z)
       sorted.sort((a, b) => {
         const ap = priceOf(a)
         const bp = priceOf(b)
         if (ap !== null && bp !== null)
-          return (ap - bp) || (b.computedApproachability - a.computedApproachability) || stableKeyCompare(a, b)
+          return (ap - bp) || ((b.rating ?? -1) - (a.rating ?? -1)) || (b.name ?? '').localeCompare(a.name ?? '')
         if (ap !== null) return -1
         if (bp !== null) return 1
-        return (b.computedApproachability - a.computedApproachability) || stableKeyCompare(a, b)
+        return ((b.rating ?? -1) - (a.rating ?? -1)) || (b.name ?? '').localeCompare(a.name ?? '')
       })
       break
     default:
       sorted.sort((a, b) =>
         (b.computedMatch - a.computedMatch) ||
         (b.computedApproachability - a.computedApproachability) ||
-        stableKeyCompare(a, b)
+        (b.name ?? '').localeCompare(a.name ?? '')
       )
   }
 
