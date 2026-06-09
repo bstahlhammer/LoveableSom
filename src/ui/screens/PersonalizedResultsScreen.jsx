@@ -260,10 +260,12 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
 
   const scoredWines = useMemo(() => {
     if (!tasteProfile) return baseWines
+    console.log('[score debug] tasteProfile.palate:', tasteProfile?.palate)
     return baseWines.map(w => {
       const rawRaw = computeMatch(w, tasteProfile)
       const raw = Number.isFinite(rawRaw) ? rawRaw : null
       const { score: adjusted, isLow, reason, flags } = computeMatchWithConfidence({ ...w, computedMatch: raw ?? 50 }, tasteProfile)
+      console.log('[score debug]', w.name, '| body:', w.body, 'tannin:', w.tannin, '| rawMatch:', rawRaw, '→ adjusted:', adjusted)
       return {
         ...w,
         computedMatch: raw,
