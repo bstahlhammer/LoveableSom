@@ -4,6 +4,66 @@ const bucketById = Object.fromEntries(RATING_BUCKETS.map(b => [b.id, b]))
 
 const CHARACTER_AXES = ['earthiness', 'funk', 'mineral', 'oak', 'floral']
 
+// Grape-variety palate estimates. Used when a wine has no catalog body/tannin data.
+// Values are typical-style midpoints, not absolutes — good enough for a match signal.
+const GRAPE_PALATE = {
+  // Reds
+  'cabernet sauvignon': { body: 78, tannin: 72, sweetness: 10, acidity: 52 },
+  'merlot':             { body: 65, tannin: 52, sweetness: 15, acidity: 50 },
+  'pinot noir':         { body: 50, tannin: 38, sweetness: 12, acidity: 65 },
+  'syrah':              { body: 78, tannin: 68, sweetness: 10, acidity: 52 },
+  'shiraz':             { body: 78, tannin: 68, sweetness: 10, acidity: 52 },
+  'zinfandel':          { body: 72, tannin: 58, sweetness: 18, acidity: 55 },
+  'malbec':             { body: 75, tannin: 65, sweetness: 12, acidity: 52 },
+  'cabernet franc':     { body: 62, tannin: 60, sweetness: 10, acidity: 60 },
+  'grenache':           { body: 65, tannin: 42, sweetness: 22, acidity: 48 },
+  'tempranillo':        { body: 65, tannin: 62, sweetness: 10, acidity: 58 },
+  'sangiovese':         { body: 62, tannin: 65, sweetness:  8, acidity: 68 },
+  'nebbiolo':           { body: 72, tannin: 80, sweetness:  8, acidity: 70 },
+  'barbera':            { body: 60, tannin: 48, sweetness: 10, acidity: 70 },
+  'petite sirah':       { body: 82, tannin: 78, sweetness:  8, acidity: 52 },
+  'petit verdot':       { body: 80, tannin: 75, sweetness:  8, acidity: 55 },
+  'mourvèdre':          { body: 75, tannin: 70, sweetness:  8, acidity: 55 },
+  'mourvedre':          { body: 75, tannin: 70, sweetness:  8, acidity: 55 },
+  // Whites
+  'chardonnay':         { body: 65, tannin:  5, sweetness: 20, acidity: 52 },
+  'sauvignon blanc':    { body: 42, tannin:  4, sweetness: 10, acidity: 72 },
+  'riesling':           { body: 38, tannin:  3, sweetness: 45, acidity: 75 },
+  'pinot grigio':       { body: 42, tannin:  4, sweetness: 12, acidity: 62 },
+  'pinot gris':         { body: 48, tannin:  4, sweetness: 18, acidity: 60 },
+  'pinot blanc':        { body: 48, tannin:  4, sweetness: 12, acidity: 58 },
+  'viognier':           { body: 65, tannin:  4, sweetness: 18, acidity: 45 },
+  'gewürztraminer':     { body: 55, tannin:  4, sweetness: 35, acidity: 48 },
+  'gewurztraminer':     { body: 55, tannin:  4, sweetness: 35, acidity: 48 },
+  'albariño':           { body: 42, tannin:  4, sweetness: 10, acidity: 70 },
+  'albarino':           { body: 42, tannin:  4, sweetness: 10, acidity: 70 },
+  'grüner veltliner':   { body: 45, tannin:  4, sweetness:  8, acidity: 70 },
+  'gruner veltliner':   { body: 45, tannin:  4, sweetness:  8, acidity: 70 },
+  'chenin blanc':       { body: 48, tannin:  4, sweetness: 30, acidity: 68 },
+  'marsanne':           { body: 62, tannin:  5, sweetness: 15, acidity: 48 },
+  'roussanne':          { body: 60, tannin:  5, sweetness: 15, acidity: 52 },
+  // Rosé
+  'rosé':               { body: 38, tannin:  5, sweetness: 20, acidity: 58 },
+  'rose':               { body: 38, tannin:  5, sweetness: 20, acidity: 58 },
+  // Sparkling
+  'champagne':          { body: 42, tannin:  3, sweetness: 12, acidity: 72 },
+  'prosecco':           { body: 35, tannin:  2, sweetness: 25, acidity: 65 },
+  'cava':               { body: 40, tannin:  3, sweetness: 15, acidity: 68 },
+  // Fortified / dessert
+  'port':               { body: 80, tannin: 65, sweetness: 80, acidity: 48 },
+  'sherry':             { body: 55, tannin: 10, sweetness: 40, acidity: 62 },
+}
+
+// Given a wine's grape string, return the closest palate estimate or null.
+function grapeEstimate(grape) {
+  if (!grape) return null
+  const lower = grape.toLowerCase()
+  for (const [key, val] of Object.entries(GRAPE_PALATE)) {
+    if (lower.includes(key)) return val
+  }
+  return null
+}
+
 /**
  * Compute match score 0–100 between a wine and a taste profile.
  * Body and tannin are weighted 2×; sweetness and acidity 1×.
@@ -30,6 +90,7 @@ export function computeMatch(wine, tasteProfile) {
 
   const p = tasteProfile.palate
   if (wine.body == null || wine.tannin == null || wine.sweetness == null || wine.acidity == null) {
+    // Try character axes first (user-expressed preferences)
     const charProfile = tasteProfile.character
     if (charProfile) {
       const expressed = CHARACTER_AXES.filter(
@@ -41,6 +102,16 @@ export function computeMatch(wine, tasteProfile) {
         )
         return Math.round(axisScores.reduce((a, b) => a + b, 0) / expressed.length)
       }
+    }
+    // Fall back to grape-variety estimate if available
+    const est = grapeEstimate(wine.grape ?? wine.variety)
+    if (est) {
+      const dist =
+        Math.abs(est.body      - p.body)      * 2 +
+        Math.abs(est.tannin    - p.tannin)    * 2 +
+        Math.abs(est.sweetness - p.sweetness) * 1 +
+        Math.abs(est.acidity   - p.acidity)   * 1
+      return Math.max(0, Math.round(100 - (dist / 300) * 100))
     }
     return wine.match ?? 50
   }

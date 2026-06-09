@@ -265,7 +265,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
       const rawRaw = computeMatch(w, tasteProfile)
       const raw = Number.isFinite(rawRaw) ? rawRaw : null
       const { score: adjusted, isLow, reason, flags } = computeMatchWithConfidence({ ...w, computedMatch: raw ?? 50 }, tasteProfile)
-      console.log('[score debug]', w.name, '| body:', w.body, 'tannin:', w.tannin, '| rawMatch:', rawRaw, '→ adjusted:', adjusted)
+      console.log('[score debug]', w.name, '| grape:', w.grape, '| body:', w.body, 'tannin:', w.tannin, '| rawMatch:', rawRaw, '→ adjusted:', adjusted)
       return {
         ...w,
         computedMatch: raw,
