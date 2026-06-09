@@ -58,7 +58,10 @@ export function useScan() {
         })
         if (networkFail) throw new Error('Network connection lost. Check your WiFi and try again.')
 
-        // Server-side AI / stream error — don't blame the photo
+        const billingFail = tileResults.find(r => /credit balance|billing|payment|quota/i.test(r.reason?.message ?? ''))
+        if (billingFail) throw new Error('Scan service is temporarily unavailable. Please try again later.')
+
+        // Generic server-side AI / stream error — don't blame the photo
         throw new Error('Wine scan failed. Please try again in a moment.')
       }
       // Log partial failures so we can spot patterns
