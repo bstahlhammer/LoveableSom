@@ -280,6 +280,7 @@ export default function ScanningScreen({
           borderRadius: 14, padding: '16px 18px',
           animation: 'fade-in 400ms ease-out',
           boxShadow: T.shadowMd,
+          textAlign: 'center',
         }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.cobalt500, marginBottom: 8 }}>
             ✦ Fetching wine data
@@ -287,7 +288,7 @@ export default function ScanningScreen({
           <div style={{ fontFamily: T.fontDisplay, fontSize: 17, color: T.ink900, lineHeight: 1.35, marginBottom: 12 }}>
             Fetching wine data for {uniqueWines} unique wine{uniqueWines === 1 ? '' : 's'}…
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
             {[0, 1, 2].map(i => (
               <div key={i} style={{
                 width: 8, height: 8, borderRadius: '50%',
