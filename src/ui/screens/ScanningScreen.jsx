@@ -149,11 +149,11 @@ export default function ScanningScreen({
     if (!scanDone) return
     if (!buyingFor) return
     const t = setTimeout(() => {
-      const dest = pendingNavRef.current || 'anonResults'
+      const dest = tasteProfile ? 'personalizedResults' : (pendingNavRef.current || 'anonResults')
       callbacksRef.current.navigate(dest)
     }, 350)
     return () => clearTimeout(t)
-  }, [scanDone, buyingFor])
+  }, [scanDone, buyingFor, tasteProfile])
 
   const fact = useMemo(() => WINE_FACTS[factIdx], [factIdx])
 
