@@ -388,7 +388,7 @@ export async function locateBottleInScan({ photoUrl, photoBase64, wineName, vint
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         photoUrl:    croppedBase64 ? undefined : (photoUrl || undefined),
-        photoBase64: croppedBase64 ?? photoBase64,
+        photoBase64: croppedBase64 ?? (photoBase64 || undefined),
         wineName,
         vintage,
         region,
