@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { saveScroll, getScroll } from '../utils/scrollStore.js'
 import { useShortlist } from '../hooks/useShortlist.js'
 import T from '../theme/T.js'
@@ -473,15 +473,21 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
               </button>
             </div>
             {sortedWines.map((wine, i) => (
-              <WineRowCard
-                key={wine.id ?? wine.name}
-                wine={wine}
-                rank={i}
-                sortKey={sortKey}
-                onTap={onWineSelect}
-                onSave={() => shortlist.toggle(wine)}
-                saved={shortlist.isSaved(wine)}
-              />
+              <React.Fragment key={wine.id ?? wine.name}>
+                {i < 3 && (
+                  <div style={{ background: '#f0f', color: '#fff', fontSize: 9, fontFamily: 'monospace', padding: '1px 4px', marginBottom: -4, zIndex: 10, position: 'relative' }}>
+                    map[{i}]: {wine.name?.slice(0, 40)} ${wine.priceNum ?? 'N/A'}
+                  </div>
+                )}
+                <WineRowCard
+                  wine={wine}
+                  rank={i}
+                  sortKey={sortKey}
+                  onTap={onWineSelect}
+                  onSave={() => shortlist.toggle(wine)}
+                  saved={shortlist.isSaved(wine)}
+                />
+              </React.Fragment>
             ))}
             {/* Hidden wines hint */}
             <button style={{ width: '100%', padding: '12px 0', background: 'transparent', border: 'none', color: T.ink400, fontSize: 12, fontFamily: T.fontBody, cursor: 'pointer' }}>
