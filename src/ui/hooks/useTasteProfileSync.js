@@ -4,16 +4,19 @@ import { supabase } from '@/integrations/supabase/client'
 const KEY = 'uncork_taste_profile'
 
 export function useTasteProfileSync(userId) {
-  const saveProfile = useCallback(async (profile) => {
+  const saveProfile = useCallback(async (profile, { recommendationFeedback } = {}) => {
     try { localStorage.setItem(KEY, JSON.stringify(profile)) } catch {}
     if (!userId) return
+    const payload = {
+      user_id: userId,
+      taste_profile: profile,
+      taste_profile_updated_at: new Date().toISOString(),
+    }
+    if (recommendationFeedback !== undefined) payload.recommendation_feedback = recommendationFeedback
     try {
       await supabase
         .from('profiles')
-        .upsert(
-          { user_id: userId, taste_profile: profile, taste_profile_updated_at: new Date().toISOString() },
-          { onConflict: 'user_id' }
-        )
+        .upsert(payload, { onConflict: 'user_id' })
     } catch (err) {
       console.error('Failed to save taste profile to Supabase:', err)
     }

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import T from '../theme/T.js'
 import { nearestTasteProfile, buildTasteIdentity } from '@/core/api'
 import { useTasteProfileSync } from '../hooks/useTasteProfileSync.js'
 import { supabase } from '@/integrations/supabase/client'
+import { trackEvent } from '@/core/analytics'
 
 const AXES = [
   { key: 'body',      label: 'body',      lo: 'light',    hi: 'full'   },
@@ -234,7 +235,7 @@ function RadarView({ radarDims, tasteProfile, character }) {
 }
 
 // ─── View B: Stats ────────────────────────────────────────────────────────────
-function StatsView({ palate }) {
+function StatsView({ palate, updateAxis, handleSaveTune, savingTune }) {
   return (
     <>
       <h2 style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 24, lineHeight: 1.1, margin: '4px 0 16px', letterSpacing: '-0.01em', color: T.ink900 }}>
@@ -242,7 +243,7 @@ function StatsView({ palate }) {
       </h2>
 
       <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', marginBottom: 14, border: `1px solid ${T.ink150}`, boxShadow: T.shadowMd }}>
-        <SecLabel>Style profile · dot = your taste</SecLabel>
+        <SecLabel>Style profile · drag to adjust</SecLabel>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {AXES.map(a => (
             <div key={a.key}>
@@ -254,17 +255,28 @@ function StatsView({ palate }) {
                 <span>{a.lo}</span>
                 <span>{a.hi}</span>
               </div>
-              <div style={{ position: 'relative', height: 8, background: T.ink100, borderRadius: 4 }}>
-                <div style={{
-                  position: 'absolute', top: '50%', left: `${palate[a.key]}%`,
-                  transform: 'translate(-50%, -50%)',
-                  width: 14, height: 14, borderRadius: '50%', background: T.forest500,
-                  border: '2px solid white', boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                }} />
-              </div>
+              <input
+                type="range" min="0" max="100" value={palate[a.key]}
+                onChange={e => updateAxis(a.key, e.target.value)}
+                style={{ width: '100%', accentColor: T.forest500 }}
+              />
             </div>
           ))}
         </div>
+        <button
+          onClick={() => handleSaveTune('stats')}
+          disabled={savingTune}
+          style={{
+            width: '100%', padding: '12px', marginTop: 18,
+            background: savingTune ? T.ink200 : `linear-gradient(135deg, ${T.forest500} 0%, ${T.forest700} 100%)`,
+            color: savingTune ? T.ink500 : 'white',
+            border: 'none', borderRadius: 100,
+            fontFamily: T.fontBody, fontSize: 14, fontWeight: 600,
+            cursor: savingTune ? 'default' : 'pointer',
+          }}
+        >
+          {savingTune ? 'Saving…' : 'Save palate'}
+        </button>
       </div>
 
       <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', marginBottom: 14, border: `1px solid ${T.ink150}` }}>
@@ -420,6 +432,7 @@ function WordsView({
   character, updateCharAxis, toggleCharAxis,
   aversions, aversionInput, setAversionInput, addAversion, removeAversion,
   handleSaveTune, savingTune, navigate,
+  feedbackText, setFeedbackText,
 }) {
   return (
     <>
@@ -454,20 +467,29 @@ function WordsView({
 
       <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', marginBottom: 16, border: `1px solid ${T.ink150}` }}>
         <SecLabel>✎ Tell us what to change</SecLabel>
-        <div style={{
-          border: `1px solid ${T.ink150}`, borderRadius: 12, padding: '10px 12px',
-          fontSize: 13.5, color: T.ink400, lineHeight: 1.5, fontStyle: 'italic', fontFamily: T.fontDisplay,
-          minHeight: 48, marginBottom: 10,
-        }}>
-          "Push me a little more adventurous…"
-        </div>
+        <textarea
+          value={feedbackText}
+          onChange={e => setFeedbackText(e.target.value)}
+          placeholder="Tell us what to change — e.g. push me toward more adventurous, less oak, cheaper bottles…"
+          maxLength={2000}
+          rows={3}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            border: `1px solid ${T.ink150}`, borderRadius: 12, padding: '10px 12px',
+            fontSize: 13, color: T.ink900, lineHeight: 1.5, fontFamily: T.fontBody,
+            minHeight: 72, marginBottom: 10, resize: 'vertical', outline: 'none',
+            background: 'white', display: 'block',
+          }}
+        />
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {['less sweet', 'more reds', 'open me up', 'cheaper', 'splurgier'].map(s => (
-            <button key={s} style={{
-              fontSize: 11.5, fontWeight: 500, padding: '6px 10px', borderRadius: 9999,
-              background: T.ink50, color: T.ink600, border: `1px solid ${T.ink150}`,
-              cursor: 'pointer', fontFamily: T.fontBody,
-            }}>+ {s}</button>
+            <button key={s}
+              onClick={() => setFeedbackText(t => t ? `${t}, ${s}` : s)}
+              style={{
+                fontSize: 11.5, fontWeight: 500, padding: '6px 10px', borderRadius: 9999,
+                background: T.ink50, color: T.ink600, border: `1px solid ${T.ink150}`,
+                cursor: 'pointer', fontFamily: T.fontBody,
+              }}>+ {s}</button>
           ))}
         </div>
       </div>
@@ -870,6 +892,17 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [view, setView] = useState('radar')
+  const [feedbackText, setFeedbackText] = useState('')
+
+  useEffect(() => {
+    if (!auth?.user?.id) return
+    supabase
+      .from('profiles')
+      .select('recommendation_feedback')
+      .eq('user_id', auth.user.id)
+      .maybeSingle()
+      .then(({ data }) => { if (data?.recommendation_feedback) setFeedbackText(data.recommendation_feedback) })
+  }, [auth?.user?.id])
 
   function flash(msg) { setToast(msg); setTimeout(() => setToast(null), 2000) }
   function updateAxis(key, value) { setPalate(p => ({ ...p, [key]: Number(value) })) }
@@ -889,7 +922,7 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
     setAversions(a => ({ ...a, varietals: a.varietals.filter(x => x !== v) }))
   }
 
-  async function handleSaveTune() {
+  async function handleSaveTune(source = 'words') {
     if (!tasteProfile) return
     setSavingTune(true)
     const archetype = nearestTasteProfile(palate)
@@ -905,10 +938,15 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
       character: charToSave,
       aversions,
     }
-    await saveProfile(updated, { refined: true })
+    await saveProfile(updated, { refined: true, recommendationFeedback: feedbackText || null })
     onProfileUpdate?.(updated)
     setSavingTune(false)
     flash('Palate updated')
+    if (source === 'stats') {
+      trackEvent('palate_refined', { source: 'stats_sliders', axisCount: 4 })
+    } else if (feedbackText.trim()) {
+      trackEvent('recommendation_feedback_saved', { charCount: feedbackText.length })
+    }
   }
 
   async function handleSaveName() {
@@ -989,7 +1027,7 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
       case 'radar':
         return <RadarView radarDims={radarDims} tasteProfile={tasteProfile} character={character} />
       case 'stats':
-        return <StatsView palate={palate} />
+        return <StatsView palate={palate} updateAxis={updateAxis} handleSaveTune={handleSaveTune} savingTune={savingTune} />
       case 'tonight':
         return <TonightView radarDims={radarDims} tonightDims={tonightDims} />
       case 'words':
@@ -1002,6 +1040,7 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
             setAversionInput={setAversionInput} addAversion={addAversion} removeAversion={removeAversion}
             handleSaveTune={handleSaveTune} savingTune={savingTune}
             navigate={navigate}
+            feedbackText={feedbackText} setFeedbackText={setFeedbackText}
           />
         )
       case 'receipt':
