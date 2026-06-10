@@ -54,6 +54,7 @@ export default function ScanningScreen({
   callbacksRef.current = { navigate, onScanComplete }
 
   const hasProfile = !!tasteProfile
+  const scanFailed = scanDone && !!file && totalBottles === 0
 
   useEffect(() => {
     if (!file) { setThumbUrl(null); return }
@@ -178,12 +179,25 @@ export default function ScanningScreen({
         >
           {scanDone ? '← Back' : '× Cancel'}
         </button>
-        {totalBottles > 0 && (
-          <div style={{ fontSize: 11, color: T.forest500, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            {totalBottles} bottle{totalBottles === 1 ? '' : 's'} · {uniqueWines} unique
-          </div>
-        )}
       </div>
+
+      {/* Scan again */}
+      {scanFailed && (
+        <div style={{ position: 'relative', zIndex: 2, padding: '12px 22px 0', display: 'flex', justifyContent: 'center' }}>
+          <button
+            onClick={goBack}
+            style={{
+              padding: '10px 28px', borderRadius: 9999,
+              border: `1.5px solid ${T.forest500}`,
+              background: T.forest100, color: T.forest700,
+              fontFamily: T.fontBody, fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', letterSpacing: '0.04em',
+            }}
+          >
+            Scan again
+          </button>
+        </div>
+      )}
 
       {/* Scan image */}
       <div style={{ position: 'relative', zIndex: 2, padding: '20px 22px 0', display: 'flex', justifyContent: 'center' }}>
@@ -271,7 +285,7 @@ export default function ScanningScreen({
             ✦ Fetching wine data
           </div>
           <div style={{ fontFamily: T.fontDisplay, fontSize: 17, color: T.ink900, lineHeight: 1.35, marginBottom: 12 }}>
-            Matching {uniqueWines} wine{uniqueWines === 1 ? '' : 's'} to your taste…
+            Fetching wine data for {uniqueWines} unique wine{uniqueWines === 1 ? '' : 's'}…
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {[0, 1, 2].map(i => (
@@ -286,7 +300,7 @@ export default function ScanningScreen({
       )}
 
       {/* Wine fact */}
-      {!enriching && <div key={factIdx} style={{
+      {<div key={factIdx} style={{
         position: 'relative', zIndex: 2, margin: '18px 22px 0',
         background: 'white', border: `1px solid ${T.ink150}`, borderRadius: 14,
         padding: '14px 16px', animation: 'fade-in 600ms ease-out',
