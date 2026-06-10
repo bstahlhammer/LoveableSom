@@ -3,12 +3,13 @@
  *
  * 1. If catalog_id is given and wine_catalog.image_url is already set → return it.
  * 2. Name-based cache lookup in Supabase.
- * 3. Otherwise, call SerpAPI Google Images to find the best bottle photo.
- * 4. Cache the result in wine_catalog (so we only ever search once per wine).
+ * 3. SerpAPI Google Images search for "<name> wine bottle".
+ * 4. Cache result via service key (anon key lacks INSERT/UPDATE permission).
  * 5. Return { imageUrl: string | null }.
  *
- * Requires SERPAPI_KEY environment variable.
- * Without it, returns { imageUrl: null } (graceful degradation).
+ * Requires SERPAPI_KEY and SUPABASE_SERVICE_KEY Worker secrets.
+ * Without SERPAPI_KEY, returns { imageUrl: null } (graceful degradation).
+ * Without SUPABASE_SERVICE_KEY, images are served but not cached.
  */
 
 import { createFileRoute } from '@tanstack/react-router'
@@ -33,19 +34,22 @@ export const Route = createFileRoute('/api/wine-image')({
           auth: { persistSession: false },
         })
 
+        const serviceKey = (process.env as Record<string, string>).SUPABASE_SERVICE_KEY
+        const supabaseWrite = serviceKey
+          ? createClient(SUPABASE_URL, serviceKey, { auth: { persistSession: false } })
+          : null
+
         // 1. Check catalog by ID
-        let idRow: { image_url: string | null; image_fetched_at: string | null } | null = null
         if (catalogId) {
           const { data } = await supabase
             .from('wine_catalog')
-            .select('image_url, image_fetched_at')
+            .select('image_url')
             .eq('id', catalogId)
             .maybeSingle()
-          idRow = data ?? null
           if (data?.image_url) return Response.json({ imageUrl: data.image_url })
         }
 
-        // 2. Name-based lookup
+        // 2. Name-based cache lookup
         const { data: byName } = await supabase
           .from('wine_catalog')
           .select('image_url')
@@ -55,22 +59,18 @@ export const Route = createFileRoute('/api/wine-image')({
           .maybeSingle()
 
         if (byName?.image_url) {
-          if (catalogId) {
-            await supabase.from('wine_catalog')
-              .update({ image_url: byName.image_url, image_fetched_at: new Date().toISOString() })
+          if (catalogId && supabaseWrite) {
+            await supabaseWrite.from('wine_catalog')
+              .update({ image_url: byName.image_url })
               .eq('id', catalogId)
           }
           return Response.json({ imageUrl: byName.image_url })
         }
 
-        // 3. Skip if already attempted
-        if (idRow?.image_fetched_at) return Response.json({ imageUrl: null })
-
-        // 4. No key → graceful no-op
+        // 3. SerpAPI Google Images search
         const serpApiKey = (process.env as Record<string, string>).SERPAPI_KEY
         if (!serpApiKey) return Response.json({ imageUrl: null })
 
-        // 5. SerpAPI Google Images search
         let imageUrl: string | null = null
         try {
           const query  = encodeURIComponent(`${name} wine bottle`)
@@ -87,15 +87,16 @@ export const Route = createFileRoute('/api/wine-image')({
             }
           }
         } catch {
-          // SerpAPI error — continue without image
+          // SerpAPI error — return without image
         }
 
-        // 6. Cache result
-        if (catalogId) {
-          await supabase
+        // 4. Cache result (requires service key — anon key is read-only)
+        if (catalogId && supabaseWrite) {
+          const { error } = await supabaseWrite
             .from('wine_catalog')
-            .update({ image_url: imageUrl, image_fetched_at: new Date().toISOString() })
+            .update({ image_url: imageUrl })
             .eq('id', catalogId)
+          if (error) console.error('[wine-image] cache write error:', error.message)
         }
 
         return Response.json({ imageUrl })
