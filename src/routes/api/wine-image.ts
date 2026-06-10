@@ -45,23 +45,26 @@ async function isLiveUrl(url: string): Promise<boolean> {
 // Coverage is best for famous producers (Opus One, Silver Oak, etc.).
 // ---------------------------------------------------------------------------
 async function tryWikipedia(name: string): Promise<string | null> {
-  // Strip common vintage/varietal suffixes to improve article matching
-  const winery = name.replace(/\b(cabernet|sauvignon|merlot|chardonnay|pinot|noir|grigio|blanc|riesling|zinfandel|syrah|shiraz|rose|rosé|\d{4})\b/gi, '').trim()
-  try {
-    const title = encodeURIComponent(winery)
-    const url   = `https://en.wikipedia.org/w/api.php?action=query&titles=${title}&prop=pageimages&format=json&pithumbsize=600`
-    const res   = await fetch(url, { headers: { 'User-Agent': 'Uncork/1.0 (wine app)' } })
-    if (!res.ok) return null
-    const data  = await res.json() as {
-      query: { pages: Record<string, { thumbnail?: { source?: string }; missing?: string }> }
+  const stripped = name.replace(/\b(cabernet|sauvignon|merlot|chardonnay|pinot|noir|grigio|blanc|riesling|zinfandel|syrah|shiraz|rose|rosé|\d{4})\b/gi, '').trim()
+  // Try base name, then with "Winery" and "Cellars" suffixes
+  const candidates = [stripped, `${stripped} Winery`, `${stripped} Cellars`]
+  for (const winery of candidates) {
+    try {
+      const title = encodeURIComponent(winery)
+      const url   = `https://en.wikipedia.org/w/api.php?action=query&titles=${title}&prop=pageimages&format=json&pithumbsize=600`
+      const res   = await fetch(url, { headers: { 'User-Agent': 'Uncork/1.0 (wine app)' } })
+      if (!res.ok) continue
+      const data  = await res.json() as {
+        query: { pages: Record<string, { thumbnail?: { source?: string }; missing?: string }> }
+      }
+      for (const page of Object.values(data.query.pages)) {
+        if (page.missing !== undefined) continue
+        const src = page.thumbnail?.source
+        if (src && await isLiveUrl(src)) return src
+      }
+    } catch {
+      // try next candidate
     }
-    for (const page of Object.values(data.query.pages)) {
-      if (page.missing !== undefined) continue
-      const src = page.thumbnail?.source
-      if (src && await isLiveUrl(src)) return src
-    }
-  } catch {
-    // fall through
   }
   return null
 }
@@ -138,29 +141,6 @@ export const Route = createFileRoute('/api/wine-image')({
         const url       = new URL(request.url)
         const name      = url.searchParams.get('name')?.trim()
         const catalogId = url.searchParams.get('catalog_id')
-
-        if (name === '__debug__') {
-          const cseKey = env().GOOGLE_CSE_KEY
-          const cseCx  = env().GOOGLE_CSE_ID
-          let cseStatus = 0
-          if (cseKey && cseCx) {
-            const r = await fetch(`https://www.googleapis.com/customsearch/v1?key=${cseKey}&cx=${cseCx}&q=test+wine&searchType=image&num=1`)
-            cseStatus = r.status
-          }
-          const serpKey = env().SERPAPI_KEY
-          let serpStatus = 0
-          if (serpKey) {
-            const r = await fetch(`https://serpapi.com/search.json?engine=google_images&q=test+wine&num=1&api_key=${serpKey}`)
-            serpStatus = r.status
-          }
-          return Response.json({
-            GOOGLE_CSE_KEY: !!cseKey, cseStatus,
-            GOOGLE_CSE_ID:  !!cseCx,
-            BING_IMAGE_KEY: !!env().BING_IMAGE_KEY,
-            SERPAPI_KEY:    !!serpKey, serpStatus,
-            SUPABASE_SERVICE_KEY: !!env().SUPABASE_SERVICE_KEY,
-          })
-        }
 
         if (!name) {
           return Response.json({ imageUrl: null, error: 'missing name' }, { status: 400 })
