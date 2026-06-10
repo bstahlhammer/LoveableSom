@@ -140,11 +140,24 @@ export const Route = createFileRoute('/api/wine-image')({
         const catalogId = url.searchParams.get('catalog_id')
 
         if (name === '__debug__') {
+          const cseKey = env().GOOGLE_CSE_KEY
+          const cseCx  = env().GOOGLE_CSE_ID
+          let cseStatus = 0
+          if (cseKey && cseCx) {
+            const r = await fetch(`https://www.googleapis.com/customsearch/v1?key=${cseKey}&cx=${cseCx}&q=test+wine&searchType=image&num=1`)
+            cseStatus = r.status
+          }
+          const serpKey = env().SERPAPI_KEY
+          let serpStatus = 0
+          if (serpKey) {
+            const r = await fetch(`https://serpapi.com/search.json?engine=google_images&q=test+wine&num=1&api_key=${serpKey}`)
+            serpStatus = r.status
+          }
           return Response.json({
-            GOOGLE_CSE_KEY:      !!env().GOOGLE_CSE_KEY,
-            GOOGLE_CSE_ID:       !!env().GOOGLE_CSE_ID,
-            BING_IMAGE_KEY:      !!env().BING_IMAGE_KEY,
-            SERPAPI_KEY:         !!env().SERPAPI_KEY,
+            GOOGLE_CSE_KEY: !!cseKey, cseStatus,
+            GOOGLE_CSE_ID:  !!cseCx,
+            BING_IMAGE_KEY: !!env().BING_IMAGE_KEY,
+            SERPAPI_KEY:    !!serpKey, serpStatus,
             SUPABASE_SERVICE_KEY: !!env().SUPABASE_SERVICE_KEY,
           })
         }
