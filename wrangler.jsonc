@@ -8,6 +8,7 @@
     // 7:00 UTC = midnight MT / 3am ET — runs after the previous day's CSE quota resets
     "crons": ["0 7 * * *"]
   },
+  "workers_dev": true,
   "routes": [
     { "pattern": "apps.forgeproductstrategy.com/*", "zone_name": "forgeproductstrategy.com" }
   ],
