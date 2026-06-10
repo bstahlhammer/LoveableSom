@@ -194,10 +194,10 @@ function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
           </button>
         </div>
       </div>
-      {noData
-        ? <div style={{ fontSize: 11, color: T.ink300, fontFamily: T.fontBody, fontStyle: 'italic' }}>No taste data available — we can't assess fit for your palate</div>
-        : <TwoSignalBars tasteFit={score} wePoints={wine.rating ?? null} />
-      }
+      {noData && (
+        <div style={{ fontSize: 11, color: T.ink300, fontFamily: T.fontBody, fontStyle: 'italic' }}>No taste data available — we can't assess fit for your palate</div>
+      )}
+      <TwoSignalBars tasteFit={noData ? null : score} wePoints={wine.rating ?? null} />
       {!noData && wine.matchIsLow && <ConfidencePill flags={wine.matchFlags ?? []} wine={wine} />}
       {wine.tasting && (
         <p style={{ fontSize: 12, color: T.ink500, margin: 0, lineHeight: 1.5, fontFamily: T.fontBody, fontStyle: 'italic' }}>
@@ -253,11 +253,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   // Scroll to top whenever sortKey changes (but not on initial mount)
   useEffect(() => {
     if (isMountRef.current) return
-    console.log('[PersonalizedResults] scroll-reset effect fired. sortKey:', sortKey, 'scrollTop before:', scrollRef.current?.scrollTop)
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0
-      console.log('[PersonalizedResults] scroll-reset effect after set. scrollTop:', scrollRef.current.scrollTop)
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
   }, [sortKey])
 
   const { baseWines, fromScan, readability, retakeReasons } = useMemo(() => {
@@ -288,9 +284,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   const filteredWines = useMemo(() => applyFilters(scoredWines, filters), [scoredWines, filters])
 
   const sortedWines = useMemo(() => {
-    const result = sortWines(filteredWines, sortKey, tasteProfile)
-    console.log('[PersonalizedResults] sortedWines recomputed. sortKey:', sortKey, '| first 3:', result.slice(0, 3).map(w => `${w.name} ($${w.priceNum ?? 'N/A'}, rating:${w.rating ?? 'N/A'}, isValue:${w.isValue})`))
-    return result
+    return sortWines(filteredWines, sortKey, tasteProfile)
   }, [filteredWines, sortKey, tasteProfile])
 
 
@@ -449,16 +443,9 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         {/* Sort toggle + wine list */}
         {!showOnlySaved && sortedWines.length > 0 && (
           <div style={{ padding: '10px 16px 80px' }}>
-            {/* TEMP DEBUG — remove after confirming sort works */}
-            <div style={{ background: '#ff0', padding: '6px 10px', borderRadius: 8, marginBottom: 8, fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#000' }}>
-              SORT: {sortKey}<br/>
-              #1: {sortedWines[0]?.name?.slice(0, 28)} ${sortedWines[0]?.priceNum ?? 'N/A'}<br/>
-              #2: {sortedWines[1]?.name?.slice(0, 28)} ${sortedWines[1]?.priceNum ?? 'N/A'}<br/>
-              #3: {sortedWines[2]?.name?.slice(0, 28)} ${sortedWines[2]?.priceNum ?? 'N/A'}
-            </div>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { console.log('[PersonalizedResults] sort button pressed:', k, '| current sortKey:', sortKey); onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
               <button
                 onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
                 style={{

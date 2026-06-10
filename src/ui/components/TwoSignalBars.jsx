@@ -64,16 +64,21 @@ function SignalRow({ label, barPct, descriptor, color }) {
 }
 
 export default function TwoSignalBars({ tasteFit, wePoints, confidenceLevel }) {
-  const tfScore = typeof tasteFit === 'number' ? Math.max(0, Math.min(100, tasteFit)) : 50
+  const hasTasteFit = typeof tasteFit === 'number'
+  const tfScore = hasTasteFit ? Math.max(0, Math.min(100, tasteFit)) : 50
+
+  if (!hasTasteFit && wePoints == null) return null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <SignalRow
-        label="Taste Fit"
-        barPct={tfScore}
-        descriptor={tasteFitDescriptor(tfScore)}
-        color={tasteFitColor(tfScore)}
-      />
+      {hasTasteFit && (
+        <SignalRow
+          label="Taste Fit"
+          barPct={tfScore}
+          descriptor={tasteFitDescriptor(tfScore)}
+          color={tasteFitColor(tfScore)}
+        />
+      )}
       {wePoints != null && (
         <SignalRow
           label="Quality"
@@ -82,7 +87,7 @@ export default function TwoSignalBars({ tasteFit, wePoints, confidenceLevel }) {
           color={qualityColor(wePoints)}
         />
       )}
-      {confidenceLevel === 'closest' && (
+      {hasTasteFit && confidenceLevel === 'closest' && (
         <div style={{ marginTop: 2 }}>
           <span style={{
             fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 9999,

@@ -38,12 +38,21 @@ export function sortWines(wines, sortKey, tasteProfile = null) {
   switch (sortKey) {
     case 'match':
       // Z→A tiebreaker — opposite of 'crowd' so equal wines visibly flip between these two sorts
-      sorted.sort((a, b) =>
-        (b.computedMatch - a.computedMatch) ||
-        (b.computedApproachability - a.computedApproachability) ||
-        ((b.rating ?? -1) - (a.rating ?? -1)) ||
-        (b.name ?? '').localeCompare(a.name ?? '')
-      )
+      // Wines with null computedMatch (no taste data) sort after all scored wines.
+      sorted.sort((a, b) => {
+        const aScore = typeof a.computedMatch === 'number' ? a.computedMatch : null
+        const bScore = typeof b.computedMatch === 'number' ? b.computedMatch : null
+        if (aScore !== null && bScore !== null)
+          return (bScore - aScore) ||
+            (b.computedApproachability - a.computedApproachability) ||
+            ((b.rating ?? -1) - (a.rating ?? -1)) ||
+            (b.name ?? '').localeCompare(a.name ?? '')
+        if (aScore !== null) return -1
+        if (bScore !== null) return 1
+        return (b.computedApproachability - a.computedApproachability) ||
+          ((b.rating ?? -1) - (a.rating ?? -1)) ||
+          (b.name ?? '').localeCompare(a.name ?? '')
+      })
       break
     case 'crowd':
       // A→Z tiebreaker — opposite of 'match' so equal wines visibly flip between these two sorts
