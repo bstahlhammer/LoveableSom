@@ -194,18 +194,25 @@ export function useScan() {
 }
 
 function mergeCatalogWine(scanned, cat) {
+  // Discard the scanned shelf price if it's less than 50% of the catalog price —
+  // that gap means the scanner picked up a nearby bottle's tag, not this wine's price.
+  const scannedNum = scanned.priceNum ?? null
+  const catNum     = cat.priceNum     ?? null
+  const priceIsPlausible = scannedNum == null || catNum == null || scannedNum >= catNum * 0.5
+  const useScannedPrice  = scannedNum != null && priceIsPlausible
+
   return {
     ...cat,
-    price:           scanned.price      ?? cat.price,
-    priceNum:        scanned.priceNum   ?? cat.priceNum,
+    price:           useScannedPrice ? scanned.price  : cat.price,
+    priceNum:        useScannedPrice ? scannedNum      : catNum,
     vintage:         scanned.vintage    ?? cat.vintage,
     confidence:      scanned.confidence,
     grape:           scanned.grape      ?? cat.grape,
     region:          scanned.region     ?? cat.region,
     scannedPrice:    scanned.price      ?? null,
-    scannedPriceNum: scanned.priceNum   ?? null,
+    scannedPriceNum: scannedNum,
     catalogPrice:    cat.price          ?? null,
-    catalogPriceNum: cat.priceNum       ?? null,
+    catalogPriceNum: catNum,
     _tileRect:       scanned._tileRect  ?? null,
   }
 }
