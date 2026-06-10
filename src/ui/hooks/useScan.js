@@ -24,6 +24,7 @@ export function useScan() {
 
       const mimeType = file.type || 'image/jpeg'
       let wineCount = 0
+      const uniqueWineNames = new Set()
       // Catalog lookups start as each wine streams in, pipelined with tile scanning.
       // By the time all tiles complete, most lookups are already resolved.
       const catalogCache = new Map() // normalizedName → Promise<catalog|null>
@@ -32,9 +33,11 @@ export function useScan() {
       const tileResults = await Promise.allSettled(
         tiles.map(({ base64: tileBase64, normRect }) => scanTile(tileBase64, mimeType, controller.signal, (wine) => {
           wineCount++
-          onWine?.(wine, wineCount)
-          onProgress?.({ stage: 'wine', count: wineCount, message: `${wineCount} wine${wineCount === 1 ? '' : 's'} identified` })
           const key = normalizeWineName(wine.name)
+          uniqueWineNames.add(key)
+          onWine?.(wine, wineCount)
+          const u = uniqueWineNames.size
+          onProgress?.({ stage: 'wine', count: u, message: `${u} wine${u === 1 ? '' : 's'} identified` })
           if (!catalogCache.has(key)) {
             catalogCache.set(key, lookupWineCatalog(wine.name).catch(() => null))
           }
@@ -90,9 +93,11 @@ export function useScan() {
         try {
           const fallbackResult = await scanTile(photoBase64, mimeType, controller.signal, (wine) => {
             wineCount++
-            onWine?.(wine, wineCount)
-            onProgress?.({ stage: 'wine', count: wineCount, message: `${wineCount} wine${wineCount === 1 ? '' : 's'} identified` })
             const key = normalizeWineName(wine.name)
+            uniqueWineNames.add(key)
+            onWine?.(wine, wineCount)
+            const u = uniqueWineNames.size
+            onProgress?.({ stage: 'wine', count: u, message: `${u} wine${u === 1 ? '' : 's'} identified` })
             if (!catalogCache.has(key)) {
               catalogCache.set(key, lookupWineCatalog(wine.name).catch(() => null))
             }
