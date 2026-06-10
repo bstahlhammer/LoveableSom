@@ -444,7 +444,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
             {shortlist.list.length === 0
               ? <p style={{ fontFamily: T.fontBody, color: T.ink400 }}>Nothing saved yet.</p>
               : shortlist.list.map((wine, i) => (
-                  <AnonWineRowCard key={wine.id ?? wine.name} wine={wine} rank={i} onTap={onWineSelect} onSave={() => shortlist.toggle(wine)} saved />
+                  <AnonWineRowCard key={wine._scanIdx ?? wine.id ?? wine.name} wine={wine} rank={i} onTap={onWineSelect} onSave={() => shortlist.toggle(wine)} saved />
                 ))
             }
           </div>
@@ -471,7 +471,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
             </div>
             {sortedWines.map((wine, i) => (
               <AnonWineRowCard
-                key={wine.id ?? wine.name}
+                key={wine._scanIdx ?? wine.id ?? wine.name}
                 wine={wine}
                 rank={i}
                 sortKey={sortKey}
