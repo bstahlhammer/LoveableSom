@@ -74,7 +74,7 @@ export default function WineCard({ wine, personalized, isBestMatch, tasteProfile
   const priceStr = wine.price && wine.price !== ',' && String(wine.price).trim() !== ''
     ? (String(wine.price).startsWith('$') ? wine.price : `$${wine.price}`)
     : null
-  const meta = [wine.vintage, wine.region, wine.grape]
+  const meta = [wine.region, wine.grape]
     .filter(v => v && String(v).trim() !== '')
     .join(' · ')
 

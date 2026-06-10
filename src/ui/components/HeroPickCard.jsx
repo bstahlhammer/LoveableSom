@@ -48,7 +48,7 @@ export default function HeroPickCard({ role, wine, reasoning, ctaLabel, onCta, o
   const priceStr = wine.price && wine.price !== ',' && String(wine.price).trim() !== ''
     ? (String(wine.price).startsWith('$') ? wine.price : `$${wine.price}`)
     : null
-  const subline = [wine.vintage, wine.region, wine.grape, priceStr].filter(v => v && String(v).trim() !== '').join(' · ')
+  const subline = [wine.region, wine.grape, priceStr].filter(v => v && String(v).trim() !== '').join(' · ')
 
   const hasScore = typeof matchScore === 'number'
   const wePoints = wine.rating ?? null

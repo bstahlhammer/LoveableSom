@@ -233,7 +233,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
 
             {/* vintage · region · varietal */}
             <div style={{ fontSize: 13, color: T.ink300, fontStyle: 'italic', fontFamily: T.fontDisplay, marginBottom: 6, lineHeight: 1.3 }}>
-              {[wine.vintage, wine.region, wine.grape].filter(Boolean).join(' · ')}
+              {[wine.region, wine.grape].filter(Boolean).join(' · ')}
             </div>
 
             <StyleBadges wine={wine} />

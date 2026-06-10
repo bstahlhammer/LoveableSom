@@ -174,7 +174,7 @@ function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
             textDecoration: (!noData && score < 50) ? 'line-through' : 'none',
             textDecorationColor: T.scarlet400,
           }}>
-            {wine.name}{wine.vintage ? ` ${wine.vintage}` : ''}
+            {wine.name}
           </div>
           <div style={{ fontSize: 11, color: T.ink400, marginTop: 2, fontFamily: T.fontBody }}>
             {[wine.grape, wine.region].filter(Boolean).join(' · ')}

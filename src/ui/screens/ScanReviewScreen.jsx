@@ -125,7 +125,6 @@ export default function ScanReviewScreen({ scan, wines = [], goBack, onSaved, on
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, color: T.ink800, fontWeight: 500, lineHeight: 1.3 }}>{w.name}</div>
-                    {w.vintage && <div style={{ fontSize: 11, color: T.ink400, marginTop: 1 }}>{w.vintage}</div>}
                     {typeof w.confidence === 'number' && w.confidence < 70 && (
                       <div style={{ fontSize: 10, color: T.scarlet600, marginTop: 2 }}>Low confidence, please verify</div>
                     )}

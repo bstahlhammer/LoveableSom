@@ -55,7 +55,7 @@ function WineRow({ id, wine, onRemove }) {
           {wine?.name || 'Unknown wine'}
         </div>
         <div style={{ fontFamily: T.fontBody, fontSize: 11, color: T.ink400, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {[wine?.vintage, wine?.region, wine?.grape].filter(Boolean).join(' · ') || ' '}
+          {[wine?.region, wine?.grape].filter(Boolean).join(' · ') || ' '}
         </div>
       </div>
       <button onClick={() => onRemove(id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.ink300, fontSize: 20, padding: 4, flexShrink: 0, lineHeight: 1 }} title="Remove">

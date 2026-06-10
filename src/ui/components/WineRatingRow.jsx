@@ -139,7 +139,7 @@ export function WineRatingRow({ wine, savedRating, onRate, onDark = false }) {
           fontFamily: theme.typography.fontSans, fontSize: 11,
           color: metaColor, marginBottom: 4,
         }}>
-          {[wine?.vintage, wine?.grape || wine?.varietal].filter(Boolean).join(' · ') || ' '}
+          {[wine?.grape || wine?.varietal].filter(Boolean).join(' · ') || ' '}
         </div>
         <StarRating value={stars} onChange={handleStars} onDark={onDark} />
         {stars > 0 && (

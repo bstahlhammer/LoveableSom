@@ -96,7 +96,7 @@ function AnonWineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 11, color: T.ink400, fontWeight: 600, fontFamily: T.fontBody }}>#{rank + 1}</span>
           <div style={{ fontFamily: T.fontDisplay, fontSize: 16, color: T.ink900, lineHeight: 1.2, marginTop: 3 }}>
-            {wine.name}{wine.vintage ? ` ${wine.vintage}` : ''}
+            {wine.name}
           </div>
           <div style={{ fontSize: 11, color: T.ink400, marginTop: 2, fontFamily: T.fontBody }}>
             {[wine.grape, wine.region].filter(Boolean).join(' · ')}
