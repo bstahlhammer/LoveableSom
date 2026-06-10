@@ -289,7 +289,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
 
   const sortedWines = useMemo(() => {
     const result = sortWines(filteredWines, sortKey, tasteProfile)
-    console.log('[PersonalizedResults] sortedWines recomputed. sortKey:', sortKey, '| first 3:', result.slice(0, 3).map(w => w.name))
+    console.log('[PersonalizedResults] sortedWines recomputed. sortKey:', sortKey, '| first 3:', result.slice(0, 3).map(w => `${w.name} ($${w.priceNum ?? 'N/A'}, rating:${w.rating ?? 'N/A'}, isValue:${w.isValue})`))
     return result
   }, [filteredWines, sortKey, tasteProfile])
 
@@ -450,8 +450,11 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         {!showOnlySaved && sortedWines.length > 0 && (
           <div style={{ padding: '10px 16px 80px' }}>
             {/* TEMP DEBUG — remove after confirming sort works */}
-            <div style={{ background: '#ff0', padding: '6px 10px', borderRadius: 8, marginBottom: 8, fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: '#000' }}>
-              SORT: {sortKey} | #1: {sortedWines[0]?.name?.slice(0, 30)}
+            <div style={{ background: '#ff0', padding: '6px 10px', borderRadius: 8, marginBottom: 8, fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#000' }}>
+              SORT: {sortKey}<br/>
+              #1: {sortedWines[0]?.name?.slice(0, 28)} ${sortedWines[0]?.priceNum ?? 'N/A'}<br/>
+              #2: {sortedWines[1]?.name?.slice(0, 28)} ${sortedWines[1]?.priceNum ?? 'N/A'}<br/>
+              #3: {sortedWines[2]?.name?.slice(0, 28)} ${sortedWines[2]?.priceNum ?? 'N/A'}
             </div>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

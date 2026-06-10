@@ -211,7 +211,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
 
   const sortedWines = useMemo(() => {
     const result = sortWines(filteredWines, sortKey, hasProfile ? tasteProfile : null)
-    console.log('[AnonResults] sortedWines recomputed. sortKey:', sortKey, '| first 3:', result.slice(0, 3).map(w => w.name))
+    console.log('[AnonResults] sortedWines recomputed. sortKey:', sortKey, '| first 3:', result.slice(0, 3).map(w => `${w.name} ($${w.priceNum ?? 'N/A'}, rating:${w.rating ?? 'N/A'}, isValue:${w.isValue})`))
     return result
   }, [filteredWines, sortKey, tasteProfile, hasProfile])
 
