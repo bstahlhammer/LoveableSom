@@ -445,6 +445,10 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         {/* Sort toggle + wine list */}
         {!showOnlySaved && sortedWines.length > 0 && (
           <div style={{ padding: '10px 16px 80px' }}>
+            {/* TEMP DEBUG — remove after confirming sort works */}
+            <div style={{ background: '#ff0', padding: '6px 10px', borderRadius: 8, marginBottom: 8, fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: '#000' }}>
+              SORT: {sortKey} | #1: {sortedWines[0]?.name?.slice(0, 30)}
+            </div>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { console.log('[PersonalizedResults] sort button pressed:', k, '| current sortKey:', sortKey); onSortChange(k) }} />
