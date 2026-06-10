@@ -468,17 +468,58 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
                 🌿 Natural
               </button>
             </div>
-            {sortedWines.map((wine, i) => (
-              <WineRowCard
-                key={wine._scanIdx ?? wine.id ?? wine.name}
-                wine={wine}
-                rank={i}
-                sortKey={sortKey}
-                onTap={onWineSelect}
-                onSave={() => shortlist.toggle(wine)}
-                saved={shortlist.isSaved(wine)}
-              />
-            ))}
+            {(() => {
+              if (sortKey !== 'match') {
+                return sortedWines.map((wine, i) => (
+                  <WineRowCard
+                    key={wine._scanIdx ?? wine.id ?? wine.name}
+                    wine={wine} rank={i} sortKey={sortKey}
+                    onTap={onWineSelect}
+                    onSave={() => shortlist.toggle(wine)}
+                    saved={shortlist.isSaved(wine)}
+                  />
+                ))
+              }
+              const scored   = sortedWines.filter(w => w.computedMatch !== null)
+              const unscored = sortedWines.filter(w => w.computedMatch === null)
+              const showDivider = scored.length > 0 && unscored.length > 0
+              return (
+                <>
+                  {scored.map((wine, i) => (
+                    <WineRowCard
+                      key={wine._scanIdx ?? wine.id ?? wine.name}
+                      wine={wine} rank={i} sortKey={sortKey}
+                      onTap={onWineSelect}
+                      onSave={() => shortlist.toggle(wine)}
+                      saved={shortlist.isSaved(wine)}
+                    />
+                  ))}
+                  {showDivider && (
+                    <div style={{ margin: '20px 0 14px', borderTop: `1px solid ${T.ink150}`, paddingTop: 14 }}>
+                      <div style={{
+                        fontSize: 10, fontWeight: 700, color: T.ink400,
+                        letterSpacing: '0.12em', textTransform: 'uppercase',
+                        fontFamily: T.fontBody, marginBottom: 4,
+                      }}>
+                        No taste data available
+                      </div>
+                      <p style={{ margin: 0, fontFamily: T.fontBody, fontSize: 12, color: T.ink400, lineHeight: 1.5 }}>
+                        We couldn't find tasting profiles for these wines. They may still be great picks.
+                      </p>
+                    </div>
+                  )}
+                  {unscored.map((wine, i) => (
+                    <WineRowCard
+                      key={wine._scanIdx ?? wine.id ?? wine.name}
+                      wine={wine} rank={scored.length + i} sortKey={sortKey}
+                      onTap={onWineSelect}
+                      onSave={() => shortlist.toggle(wine)}
+                      saved={shortlist.isSaved(wine)}
+                    />
+                  ))}
+                </>
+              )
+            })()}
             {/* Hidden wines hint */}
             <button style={{ width: '100%', padding: '12px 0', background: 'transparent', border: 'none', color: T.ink400, fontSize: 12, fontFamily: T.fontBody, cursor: 'pointer' }}>
               Showing all {sortedWines.length} wines →
