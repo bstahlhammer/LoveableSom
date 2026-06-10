@@ -142,6 +142,18 @@ export const Route = createFileRoute('/api/wine-image')({
         const name      = url.searchParams.get('name')?.trim()
         const catalogId = url.searchParams.get('catalog_id')
 
+        if (name === '__debug__') {
+          const cseKey = env().GOOGLE_CSE_KEY; const cseCx = env().GOOGLE_CSE_ID
+          const cseStatus = (cseKey && cseCx) ? (await fetch(`https://www.googleapis.com/customsearch/v1?key=${cseKey}&cx=${cseCx}&q=wine&searchType=image&num=1`)).status : 0
+          const serpKey = env().SERPAPI_KEY
+          const serpStatus = serpKey ? (await fetch(`https://serpapi.com/search.json?engine=google_images&q=wine&num=1&api_key=${serpKey}`)).status : 0
+          const wikiRes = await fetch('https://en.wikipedia.org/w/api.php?action=query&titles=Silver_Oak_Cellars&prop=pageimages&format=json&pithumbsize=200', { headers: { 'User-Agent': 'Uncork/1.0' } })
+          const wikiStatus = wikiRes.status
+          const wikiData = wikiStatus === 200 ? await wikiRes.json() as any : null
+          const wikiThumb = wikiData ? Object.values(wikiData?.query?.pages ?? {})[0] as any : null
+          return Response.json({ cseStatus, serpStatus, wikiStatus, wikiHasThumb: !!wikiThumb?.thumbnail?.source })
+        }
+
         if (!name) {
           return Response.json({ imageUrl: null, error: 'missing name' }, { status: 400 })
         }
