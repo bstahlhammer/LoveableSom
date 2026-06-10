@@ -191,6 +191,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
   ], [hasProfile])
 
   const handleSortChange = (next) => {
+    console.log('[AnonResults] sort button pressed:', next, '| current sortKey:', sortKey, '| hasProfile:', hasProfile)
     if (next === 'match' && !hasProfile) {
       setShowMatchPrompt(true)
       setTimeout(() => setShowMatchPrompt(false), 5000)
@@ -201,10 +202,11 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
     if (scrollRef.current) scrollRef.current.scrollTop = 0
   }
 
-  const sortedWines = useMemo(
-    () => sortWines(filteredWines, sortKey, hasProfile ? tasteProfile : null),
-    [filteredWines, sortKey, tasteProfile, hasProfile]
-  )
+  const sortedWines = useMemo(() => {
+    const result = sortWines(filteredWines, sortKey, hasProfile ? tasteProfile : null)
+    console.log('[AnonResults] sortedWines recomputed. sortKey:', sortKey, '| first 3:', result.slice(0, 3).map(w => w.name))
+    return result
+  }, [filteredWines, sortKey, tasteProfile, hasProfile])
 
   const lowConfidenceCount = useMemo(
     () => allWines.filter(w => typeof w.confidence === 'number' && w.confidence < 60).length,

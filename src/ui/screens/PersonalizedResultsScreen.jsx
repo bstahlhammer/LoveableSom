@@ -275,10 +275,11 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   const facets = useMemo(() => getFilterFacets(scoredWines), [scoredWines])
   const filteredWines = useMemo(() => applyFilters(scoredWines, filters), [scoredWines, filters])
 
-  const sortedWines = useMemo(
-    () => sortWines(filteredWines, sortKey, tasteProfile),
-    [filteredWines, sortKey, tasteProfile]
-  )
+  const sortedWines = useMemo(() => {
+    const result = sortWines(filteredWines, sortKey, tasteProfile)
+    console.log('[PersonalizedResults] sortedWines recomputed. sortKey:', sortKey, '| first 3:', result.slice(0, 3).map(w => w.name))
+    return result
+  }, [filteredWines, sortKey, tasteProfile])
 
 
   const topMatch = useMemo(() => {
@@ -438,7 +439,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
           <div style={{ padding: '10px 16px 80px' }}>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { console.log('[PersonalizedResults] sort button pressed:', k, '| current sortKey:', sortKey); onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
               <button
                 onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
                 style={{
