@@ -181,9 +181,9 @@ export const Route = createFileRoute('/api/wine-image')({
 
         // 3–6. Live search cascade: Wikipedia → Google CSE → Bing → SerpAPI
         const imageUrl =
-          await tryWikipedia(name)  ??
-          await tryGoogleCSE(name)  ??
-          await tryBing(name)       ??
+          await tryWikipedia(name) ??
+          await tryGoogleCSE(name) ??
+          await tryBing(name)      ??
           await trySerpAPI(name)
 
         // Cache result
