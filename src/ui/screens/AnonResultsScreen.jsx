@@ -199,7 +199,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
     }
     setShowMatchPrompt(false)
     onSortChange(next)
-    if (scrollRef.current) scrollRef.current.scrollTop = 0
+    requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 })
   }
 
   const sortedWines = useMemo(() => {
@@ -299,7 +299,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
       )}
 
       {/* Scrollable content */}
-      <div ref={scrollRef} className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', position: 'relative', zIndex: 1, background: `linear-gradient(to bottom, ${T.forest50} 0%, ${T.ink0} 35%, ${T.ink0} 70%, ${T.cobalt50} 100%)` }}>
+      <div ref={scrollRef} className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowAnchor: 'none', position: 'relative', zIndex: 1, background: `linear-gradient(to bottom, ${T.forest50} 0%, ${T.ink0} 35%, ${T.ink0} 70%, ${T.cobalt50} 100%)` }}>
         {/* Shortlist banner */}
         {shortlist.list.length > 0 && (
           <div style={{

@@ -347,7 +347,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
       )}
 
       {/* Scrollable content */}
-      <div ref={scrollRef} className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', position: 'relative', zIndex: 1, background: `linear-gradient(to bottom, ${T.forest50} 0%, ${T.ink0} 35%, ${T.ink0} 70%, ${T.cobalt50} 100%)` }}>
+      <div ref={scrollRef} className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', overflowAnchor: 'none', position: 'relative', zIndex: 1, background: `linear-gradient(to bottom, ${T.forest50} 0%, ${T.ink0} 35%, ${T.ink0} 70%, ${T.cobalt50} 100%)` }}>
         {/* Shortlist banner */}
         {shortlist.list.length > 0 && (
           <div style={{
@@ -439,7 +439,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
           <div style={{ padding: '10px 16px 80px' }}>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { console.log('[PersonalizedResults] sort button pressed:', k, '| current sortKey:', sortKey); onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { console.log('[PersonalizedResults] sort button pressed:', k, '| current sortKey:', sortKey); onSortChange(k); requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 }) }} />
               <button
                 onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
                 style={{
