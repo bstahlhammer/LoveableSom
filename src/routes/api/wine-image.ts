@@ -139,6 +139,16 @@ export const Route = createFileRoute('/api/wine-image')({
         const name      = url.searchParams.get('name')?.trim()
         const catalogId = url.searchParams.get('catalog_id')
 
+        if (name === '__debug__') {
+          return Response.json({
+            GOOGLE_CSE_KEY:      !!env().GOOGLE_CSE_KEY,
+            GOOGLE_CSE_ID:       !!env().GOOGLE_CSE_ID,
+            BING_IMAGE_KEY:      !!env().BING_IMAGE_KEY,
+            SERPAPI_KEY:         !!env().SERPAPI_KEY,
+            SUPABASE_SERVICE_KEY: !!env().SUPABASE_SERVICE_KEY,
+          })
+        }
+
         if (!name) {
           return Response.json({ imageUrl: null, error: 'missing name' }, { status: 400 })
         }
