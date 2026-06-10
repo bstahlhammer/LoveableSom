@@ -253,7 +253,11 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   // Scroll to top whenever sortKey changes (but not on initial mount)
   useEffect(() => {
     if (isMountRef.current) return
-    if (scrollRef.current) scrollRef.current.scrollTop = 0
+    console.log('[PersonalizedResults] scroll-reset effect fired. sortKey:', sortKey, 'scrollTop before:', scrollRef.current?.scrollTop)
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0
+      console.log('[PersonalizedResults] scroll-reset effect after set. scrollTop:', scrollRef.current.scrollTop)
+    }
   }, [sortKey])
 
   const { baseWines, fromScan, readability, retakeReasons } = useMemo(() => {
@@ -451,7 +455,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
             </div>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { console.log('[PersonalizedResults] sort button pressed:', k, '| current sortKey:', sortKey); onSortChange(k) }} />
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { console.log('[PersonalizedResults] sort button pressed:', k, '| current sortKey:', sortKey); onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
               <button
                 onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
                 style={{
