@@ -5,6 +5,9 @@ import { createClient } from '@supabase/supabase-js'
 const SUPABASE_URL = 'https://bromlnbihmfknqcdbieq.supabase.co'
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyb21sbmJpaG1ma25xY2RiaWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMTQyMzMsImV4cCI6MjA5MzU5MDIzM30.jwvh8WQkX5ssSKhY512CH03GG5QRijtLGhNs29iYUjI'
+// SUPABASE_SERVICE_KEY must be set as a Cloudflare Worker secret to enable catalog caching.
+// Without it, discovered wines are returned to the client but not saved to the database.
+// Set via: wrangler secret put SUPABASE_SERVICE_KEY
 const MODEL = 'claude-haiku-4-5-20251001'
 const COLS =
   'id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color'
@@ -64,9 +67,13 @@ export const Route = createFileRoute('/api/find-wine')({
         const vintage = typeof body.vintage === 'string' ? body.vintage.trim() : null
         if (!name) return Response.json({ error: 'name required' }, { status: 400 })
 
+        const serviceKey = (process.env as Record<string, string>).SUPABASE_SERVICE_KEY
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           auth: { persistSession: false },
         })
+        const supabaseWrite = serviceKey
+          ? createClient(SUPABASE_URL, serviceKey, { auth: { persistSession: false } })
+          : null
 
         // 1. Supabase exact match
         const { data: exact, error: e1 } = await supabase
@@ -131,7 +138,7 @@ export const Route = createFileRoute('/api/find-wine')({
                 const info = await _askClaude(anthropic, prompt)
                 if (info) {
                   const wine = _buildWine(info, name, vintage)
-                  _cacheWine(supabase, wine, 'web')
+                  if (supabaseWrite) await _cacheWine(supabaseWrite, wine, 'web')
                   return Response.json({ wine, source: 'web' })
                 }
               }
@@ -154,7 +161,7 @@ export const Route = createFileRoute('/api/find-wine')({
         }
 
         const wine = _buildWine(info, name, vintage)
-        _cacheWine(supabase, wine, 'ai')
+        if (supabaseWrite) await _cacheWine(supabaseWrite, wine, 'ai')
         return Response.json({ wine, source: 'ai' })
       },
     },
@@ -218,38 +225,37 @@ function _buildWine(info: Record<string, unknown>, name: string, vintage: string
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function _cacheWine(supabase: any, wine: ReturnType<typeof _buildWine>, source: string) {
-  // Fire-and-forget: check by name first to avoid accumulating duplicates
-  supabase
-    .from('wine_catalog')
-    .select('id')
-    .ilike('name', wine.name)
-    .limit(1)
-    .maybeSingle()
-    .then(({ data }: { data: unknown }) => {
-      if (data) return
-      supabase
-        .from('wine_catalog')
-        .insert({
-          name: wine.name,
-          producer: wine.winery,
-          vintage: wine.vintage ? parseInt(wine.vintage) : null,
-          grape: wine.grape,
-          region: wine.region,
-          country: wine.country,
-          color: wine.color ?? 'red',
-          body: wine.body,
-          tannin: wine.tannin,
-          sweetness: wine.sweetness,
-          acidity: wine.acidity,
-          description: wine.tasting,
-          critic_score: wine.rating,
-          source,
-        })
-        .then(() => {})
-        .catch(() => {})
-    })
-    .catch(() => {})
+async function _cacheWine(supabase: any, wine: ReturnType<typeof _buildWine>, source: string) {
+  try {
+    const { data: existing } = await supabase
+      .from('wine_catalog')
+      .select('id')
+      .ilike('name', wine.name)
+      .limit(1)
+      .maybeSingle()
+    if (existing) return
+    const { error } = await supabase
+      .from('wine_catalog')
+      .insert({
+        name: wine.name,
+        producer: wine.winery,
+        vintage: wine.vintage ? parseInt(wine.vintage) : null,
+        grape: wine.grape,
+        region: wine.region,
+        country: wine.country,
+        color: wine.color ?? 'red',
+        body: wine.body,
+        tannin: wine.tannin,
+        sweetness: wine.sweetness,
+        acidity: wine.acidity,
+        description: wine.tasting,
+        critic_score: wine.rating,
+        source,
+      })
+    if (error) console.error('[find-wine] cache insert error:', error.message, '| wine:', wine.name)
+  } catch (err) {
+    console.error('[find-wine] cache error:', err instanceof Error ? err.message : err)
+  }
 }
 
 function _toWine(row: Record<string, unknown>) {
