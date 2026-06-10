@@ -32,8 +32,8 @@ const env = () => process.env as Record<string, string>
 // ---------------------------------------------------------------------------
 async function tryWikipedia(name: string): Promise<string | null> {
   const stripped = name.replace(/\b(cabernet|sauvignon|merlot|chardonnay|pinot|noir|grigio|blanc|riesling|zinfandel|syrah|shiraz|rose|rosé|\d{4})\b/gi, '').trim()
-  // Try base name, then with "Winery" and "Cellars" suffixes
-  const candidates = [stripped, `${stripped} Winery`, `${stripped} Cellars`]
+  // Specific suffixes first to avoid ambiguous bare-name matches (e.g. "Jordan" → country flag)
+  const candidates = [`${stripped} Winery`, `${stripped} Cellars`, `${stripped} Vineyards`, `${stripped} Estate`, `${stripped} wine`]
   for (const winery of candidates) {
     try {
       const title = encodeURIComponent(winery)
