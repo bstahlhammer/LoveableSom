@@ -1,14 +1,17 @@
 /**
  * GET /api/wine-image?name=Caymus+Cabernet+Sauvignon&catalog_id=123
  *
- * Source cascade (first hit wins):
+ * Source cascade (first validated hit wins):
  *   1. Supabase cache by catalog_id
  *   2. Supabase cache by name
- *   3. Google Custom Search Engine  — 100 searches/day free (GOOGLE_CSE_KEY + GOOGLE_CSE_ID)
- *   4. Bing Image Search            — 1,000 searches/month free (BING_IMAGE_KEY)
- *   5. SerpAPI Google Images        — 100 searches/month free (SERPAPI_KEY)
- *   6. null (graceful degradation)
+ *   3. Vivino label search        — free, wine-specific (no key required)
+ *   4. Wine-Searcher image search — free, wine-specific (no key required)
+ *   5. Google Custom Search Engine  — 100 searches/day free (GOOGLE_CSE_KEY + GOOGLE_CSE_ID)
+ *   6. Bing Image Search            — 1,000 searches/month free (BING_IMAGE_KEY)
+ *   7. SerpAPI Google Images        — 100 searches/month free (SERPAPI_KEY)
+ *   8. null (graceful degradation)
  *
+ * Every candidate URL is validated (HEAD request, image content-type) before being cached.
  * Results cached in wine_catalog.image_url via SUPABASE_SERVICE_KEY.
  * All secrets are Cloudflare Worker secrets set via `wrangler secret put`.
  */
@@ -21,6 +24,84 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const env = () => process.env as Record<string, string>
 
+// ---------------------------------------------------------------------------
+// Image URL validation — confirms URL returns a real image before caching
+// ---------------------------------------------------------------------------
+async function validateImageUrl(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(4000) })
+    if (!res.ok) return false
+    const ct = res.headers.get('content-type') ?? ''
+    return ct.startsWith('image/')
+  } catch {
+    return false
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Source: Vivino — wine-specific label images, no API key required
+// ---------------------------------------------------------------------------
+async function tryVivino(name: string): Promise<string | null> {
+  try {
+    const q   = encodeURIComponent(name)
+    const url = `https://www.vivino.com/api/explore/explore?country_code=US&currency_code=USD&q=${q}&per_page=5`
+    const res = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; Uncork/1.0)',
+      },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as {
+      explore_vintage?: {
+        matches?: Array<{ vintage?: { wine?: { image?: { location?: string } } } }>
+      }
+    }
+    const matches = data.explore_vintage?.matches ?? []
+    for (const match of matches) {
+      const loc = match.vintage?.wine?.image?.location
+      if (loc) {
+        const imageUrl = loc.startsWith('//') ? `https:${loc}` : loc
+        if (await validateImageUrl(imageUrl)) return imageUrl
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Source: Wine-Searcher — wine retail search with bottle photos, no key required
+// ---------------------------------------------------------------------------
+async function tryWineSearcher(name: string): Promise<string | null> {
+  try {
+    const q   = encodeURIComponent(name)
+    const url = `https://www.wine-searcher.com/api/autocomplete.lml?search=${q}&type=wine&format=json`
+    const res = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; Uncork/1.0)',
+        'Referer': 'https://www.wine-searcher.com/',
+      },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!res.ok) return null
+    const data = await res.json() as Array<{ img?: string; image_url?: string }>
+    for (const item of data) {
+      const candidate = item.img || item.image_url
+      if (candidate?.startsWith('http') && await validateImageUrl(candidate)) return candidate
+    }
+  } catch {
+    // fall through
+  }
+  return null
+}
+
+// ---------------------------------------------------------------------------
+// Source: Google Custom Search Engine
+// ---------------------------------------------------------------------------
 async function tryGoogleCSE(name: string): Promise<string | null> {
   const key = env().GOOGLE_CSE_KEY
   const cx  = env().GOOGLE_CSE_ID
@@ -32,7 +113,7 @@ async function tryGoogleCSE(name: string): Promise<string | null> {
     if (!res.ok) return null
     const data = await res.json() as { items?: { link?: string }[] }
     for (const item of data.items ?? []) {
-      if (item.link?.startsWith('http')) return item.link
+      if (item.link?.startsWith('http') && await validateImageUrl(item.link)) return item.link
     }
   } catch {
     // fall through
@@ -40,6 +121,9 @@ async function tryGoogleCSE(name: string): Promise<string | null> {
   return null
 }
 
+// ---------------------------------------------------------------------------
+// Source: Bing Image Search
+// ---------------------------------------------------------------------------
 async function tryBing(name: string): Promise<string | null> {
   const key = env().BING_IMAGE_KEY
   if (!key) return null
@@ -50,7 +134,7 @@ async function tryBing(name: string): Promise<string | null> {
     if (!res.ok) return null
     const data = await res.json() as { value?: { contentUrl?: string }[] }
     for (const img of data.value ?? []) {
-      if (img.contentUrl?.startsWith('http')) return img.contentUrl
+      if (img.contentUrl?.startsWith('http') && await validateImageUrl(img.contentUrl)) return img.contentUrl
     }
   } catch {
     // fall through
@@ -58,6 +142,9 @@ async function tryBing(name: string): Promise<string | null> {
   return null
 }
 
+// ---------------------------------------------------------------------------
+// Source: SerpAPI Google Images
+// ---------------------------------------------------------------------------
 async function trySerpAPI(name: string): Promise<string | null> {
   const key = env().SERPAPI_KEY
   if (!key) return null
@@ -69,7 +156,7 @@ async function trySerpAPI(name: string): Promise<string | null> {
     const data = await res.json() as { images_results?: { original?: string; thumbnail?: string }[] }
     for (const img of data.images_results ?? []) {
       const src = img.original || img.thumbnail
-      if (src?.startsWith('http')) return src
+      if (src?.startsWith('http') && await validateImageUrl(src)) return src
     }
   } catch {
     // fall through
@@ -125,10 +212,12 @@ export const Route = createFileRoute('/api/wine-image')({
           return Response.json({ imageUrl: byName.image_url })
         }
 
-        // 3–5. Live search cascade: Google CSE → Bing → SerpAPI
+        // 3–7. Live search cascade: Vivino → Wine-Searcher → Google CSE → Bing → SerpAPI
         const imageUrl =
-          await tryGoogleCSE(name) ??
-          await tryBing(name)      ??
+          await tryVivino(name)       ??
+          await tryWineSearcher(name) ??
+          await tryGoogleCSE(name)    ??
+          await tryBing(name)         ??
           await trySerpAPI(name)
 
         // Cache result
