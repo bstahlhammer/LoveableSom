@@ -146,8 +146,8 @@ export function computeMatchWithConfidence(wine, tasteProfile) {
     conf *= 0.88; flags.push('quality')
   }
 
-  // Price — under $20 is budget tier
-  const priceNum = wine.priceNum ?? parseFloat(String(wine.price ?? '').replace(/[^0-9.]/g, ''))
+  // Price — under $20 is budget tier; use catalog retail price, never a scanned shelf tag
+  const priceNum = wine.catalogPriceNum ?? wine.priceNum ?? parseFloat(String(wine.price ?? '').replace(/[^0-9.]/g, ''))
   if (!isNaN(priceNum) && priceNum > 0) {
     if (priceNum < 12)       { conf *= 0.84; flags.push('price') }
     else if (priceNum < 20)  { conf *= 0.91; flags.push('price') }
