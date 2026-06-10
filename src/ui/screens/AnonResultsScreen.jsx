@@ -150,6 +150,7 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
   const [menuOpen, setMenuOpen] = useState(false)
   const shortlist = useShortlist()
   const scrollRef = useRef(null)
+  const isMountRef = useRef(true)
 
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
 
@@ -157,10 +158,17 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
     const el = scrollRef.current
     if (!el) return
     el.scrollTop = getScroll('anonResults')
+    isMountRef.current = false
     const save = () => saveScroll('anonResults', el.scrollTop)
     el.addEventListener('scroll', save, { passive: true })
     return () => el.removeEventListener('scroll', save)
   }, [])
+
+  // Scroll to top whenever sortKey changes (but not on initial mount)
+  useEffect(() => {
+    if (isMountRef.current) return
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
+  }, [sortKey])
 
   const { allWines, scanAttempted, readability, retakeReasons, scanMessage } = useMemo(() => {
     const r = normalizeScanResult(scannedWines)
@@ -199,7 +207,6 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
     }
     setShowMatchPrompt(false)
     onSortChange(next)
-    requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 })
   }
 
   const sortedWines = useMemo(() => {
