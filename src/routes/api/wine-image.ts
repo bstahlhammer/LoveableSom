@@ -26,20 +26,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const env = () => process.env as Record<string, string>
 
 // ---------------------------------------------------------------------------
-// Soft URL validation — rejects explicit 4xx only; network errors = keep URL
-// Many CDNs respond oddly to HEAD requests from datacenter IPs, so we only
-// drop URLs we know are dead (404/403/410 etc.).
-// ---------------------------------------------------------------------------
-async function isLiveUrl(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, { method: 'HEAD' })
-    return res.status < 400
-  } catch {
-    return true // network error ≠ dead URL; let it through
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Source: Wikipedia — free, no key, reliable from any IP
 // Looks up the winery/wine name and returns the article's lead image.
 // Coverage is best for famous producers (Opus One, Silver Oak, etc.).
@@ -60,7 +46,7 @@ async function tryWikipedia(name: string): Promise<string | null> {
       for (const page of Object.values(data.query.pages)) {
         if (page.missing !== undefined) continue
         const src = page.thumbnail?.source
-        if (src && await isLiveUrl(src)) return src
+        if (src) return src
       }
     } catch {
       // try next candidate
@@ -141,18 +127,6 @@ export const Route = createFileRoute('/api/wine-image')({
         const url       = new URL(request.url)
         const name      = url.searchParams.get('name')?.trim()
         const catalogId = url.searchParams.get('catalog_id')
-
-        if (name === '__debug__') {
-          const cseKey = env().GOOGLE_CSE_KEY; const cseCx = env().GOOGLE_CSE_ID
-          const cseStatus = (cseKey && cseCx) ? (await fetch(`https://www.googleapis.com/customsearch/v1?key=${cseKey}&cx=${cseCx}&q=wine&searchType=image&num=1`)).status : 0
-          const serpKey = env().SERPAPI_KEY
-          const serpStatus = serpKey ? (await fetch(`https://serpapi.com/search.json?engine=google_images&q=wine&num=1&api_key=${serpKey}`)).status : 0
-          const wikiRes = await fetch('https://en.wikipedia.org/w/api.php?action=query&titles=Silver_Oak_Cellars&prop=pageimages&format=json&pithumbsize=200', { headers: { 'User-Agent': 'Uncork/1.0' } })
-          const wikiStatus = wikiRes.status
-          const wikiData = wikiStatus === 200 ? await wikiRes.json() as any : null
-          const wikiThumb = wikiData ? Object.values(wikiData?.query?.pages ?? {})[0] as any : null
-          return Response.json({ cseStatus, serpStatus, wikiStatus, wikiHasThumb: !!wikiThumb?.thumbnail?.source })
-        }
 
         if (!name) {
           return Response.json({ imageUrl: null, error: 'missing name' }, { status: 400 })
