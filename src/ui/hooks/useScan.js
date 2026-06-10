@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { findWineImage, lookupWineCatalog, findWineOnWeb } from '@/core/api'
+import { trackEvent } from '@/core/analytics'
 
 
 
@@ -12,6 +13,9 @@ export function useScan() {
     setError(null)
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 180_000)
+    const _t0 = performance.now()
+    let sonnetFallback = false
+    trackEvent('scan_started', {})
     try {
       onProgress?.({ stage: 'preparing', message: 'Cutting the foil…' })
 
@@ -89,6 +93,7 @@ export function useScan() {
       const HOPELESS_REASONS = new Set(['not_a_wine_image', 'too_blurry', 'too_dark'])
       const isHopeless = [...retakeReasonSet].some(r => HOPELESS_REASONS.has(r))
       if (!wines.length && photoBase64 && !isHopeless) {
+        sonnetFallback = true
         onProgress?.({ stage: 'enhancing', message: 'Taking a closer look…' })
         try {
           const fallbackResult = await scanTile(photoBase64, mimeType, controller.signal, (wine) => {
@@ -180,6 +185,13 @@ export function useScan() {
       wines = wines.filter(w => !w._catalogId || byCatalogId.get(w._catalogId) === w)
       wines = wines.map((w, i) => ({ ...w, _scanIdx: i }))
 
+      trackEvent('scan_completed', {
+        wineCount:        wines.length,
+        catalogHits:      wines.filter(w => w._catalogId).length,
+        paletteDataCount: wines.filter(w => w.body != null && w.tannin != null).length,
+        sonnetFallback,
+        durationMs:       Math.round(performance.now() - _t0),
+      })
       return { wines, readability: bestReadability, retakeReasons: [...retakeReasonSet], message: '', scanType, photoBase64 }
     } catch (e) {
       setError(e.message || 'Scan failed')

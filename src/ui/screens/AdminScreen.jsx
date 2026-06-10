@@ -411,6 +411,11 @@ export default function AdminScreen() {
   const [imgWeek, setImgWeek]       = useState(0)
   const [feedback, setFeedback]     = useState([])
   const [error, setError]           = useState(null)
+  const [recKpi, setRecKpi]         = useState(null)
+  const [catKpi, setCatKpi]         = useState(null)
+  const [latKpi, setLatKpi]         = useState(null)
+  const [engKpi, setEngKpi]         = useState(null)
+  const [sortKpi, setSortKpi]       = useState([])
 
   const isAdmin = user?.email === ADMIN_EMAIL
 
@@ -432,7 +437,12 @@ export default function AdminScreen() {
       supabase.from('wine_catalog').select('id', { count: 'exact', head: true }).not('image_fetched_at', 'is', null).gte('image_fetched_at', d30),
       supabase.from('wine_catalog').select('id', { count: 'exact', head: true }).not('image_fetched_at', 'is', null).gte('image_fetched_at', d7),
       supabase.from('feedback').select('id, type, description, screen, status, submitted_at, user_id').order('submitted_at', { ascending: false }).limit(50),
-    ]).then(([ov, us, wk, tw, lr, imgT, imgM, imgW, fb]) => {
+      supabase.from('v_kpi_recognition').select('*').single(),
+      supabase.from('v_kpi_catalog').select('*').single(),
+      supabase.from('v_kpi_latency').select('*').single(),
+      supabase.from('v_kpi_engagement').select('*').single(),
+      supabase.from('v_kpi_sort').select('*'),
+    ]).then(([ov, us, wk, tw, lr, imgT, imgM, imgW, fb, recK, catK, latK, engK, sortK]) => {
       if (ov.error) { setError(ov.error.message); setLoading(false); return }
       setOverview(ov.data)
       setUsers(us.data || [])
@@ -445,6 +455,11 @@ export default function AdminScreen() {
       const emailMap = {}
       for (const u of us.data || []) emailMap[u.user_id] = u.email
       setFeedback((fb.data || []).map(f => ({ ...f, _email: emailMap[f.user_id] ?? null })))
+      setRecKpi(recK.data ?? null)
+      setCatKpi(catK.data ?? null)
+      setLatKpi(latK.data ?? null)
+      setEngKpi(engK.data ?? null)
+      setSortKpi(sortK.data ?? [])
       setLoading(false)
     })
   }, [user, authLoading, isAdmin])
@@ -537,6 +552,54 @@ export default function AdminScreen() {
           <KpiCard label="Avg Scans/User" value={overview?.avg_scans_per_user} />
           <KpiCard label="Label Requests" value={overview?.label_requests_total} />
         </div>
+
+        {/* Bottle Recognition KPIs */}
+        <SectionHeading>Bottle Recognition · last 30 days</SectionHeading>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+          <KpiCard label="Recognition Rate" value={recKpi?.recognition_rate_pct  != null ? `${recKpi.recognition_rate_pct}%`  : '—'} sub="scans with ≥1 wine" />
+          <KpiCard label="Zero-Result Rate" value={recKpi?.zero_result_rate_pct  != null ? `${recKpi.zero_result_rate_pct}%`  : '—'} sub="scans returning nothing" />
+          <KpiCard label="Catalog Hit Rate" value={catKpi?.catalog_hit_rate_pct  != null ? `${catKpi.catalog_hit_rate_pct}%`  : '—'} sub="wines matched to catalog" />
+          <KpiCard label="Fallback Rate"    value={latKpi?.fallback_rate_pct     != null ? `${latKpi.fallback_rate_pct}%`     : '—'} sub="Haiku→Sonnet escalation" />
+          <KpiCard label="Latency p50"      value={latKpi?.p50_ms               != null ? `${latKpi.p50_ms}ms`               : '—'} sub="median scan time" />
+          <KpiCard label="Latency p95"      value={latKpi?.p95_ms               != null ? `${latKpi.p95_ms}ms`               : '—'} sub="tail scan time" />
+        </div>
+
+        {/* Recommendation Quality KPIs */}
+        <SectionHeading>Recommendation Quality · last 30 days</SectionHeading>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+          <KpiCard label="Palate Coverage"  value={catKpi?.palate_coverage_pct   != null ? `${catKpi.palate_coverage_pct}%`   : '—'} sub="wines with taste data" />
+          <KpiCard label="Save Rate"        value={engKpi?.save_rate_pct         != null ? `${engKpi.save_rate_pct}%`         : '—'} sub="wines saved / surfaced" />
+          <KpiCard label="Detail View Rate" value={engKpi?.detail_view_rate_pct  != null ? `${engKpi.detail_view_rate_pct}%`  : '—'} sub="detail taps / surfaced" />
+          <KpiCard label="Completion Rate"  value={latKpi?.completion_rate_pct   != null ? `${latKpi.completion_rate_pct}%`   : '—'} sub="started → results" />
+        </div>
+        {sortKpi.length > 0 ? (
+          <div style={{ background: T.ink0, border: `1px solid ${T.ink150}`, borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+            <div style={{
+              padding: '8px 14px', background: T.ink50, borderBottom: `1px solid ${T.ink100}`,
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: T.ink400, fontFamily: T.fontBody,
+            }}>
+              Sort mode adoption
+            </div>
+            {sortKpi.map((row, i) => (
+              <div key={row.sort_key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '9px 14px', fontFamily: T.fontBody,
+                borderBottom: i < sortKpi.length - 1 ? `1px solid ${T.ink100}` : 'none',
+              }}>
+                <span style={{ fontSize: 12, color: T.ink700 }}>{row.sort_key}</span>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: T.ink400 }}>{row.times_selected}×</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: T.forest500 }}>{row.pct_of_sort_changes}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: T.ink300, fontFamily: T.fontBody, marginBottom: 24 }}>
+            No sort data yet — appears after first sort interaction by an authenticated user.
+          </div>
+        )}
 
         {/* Users table */}
         <SectionHeading>Users · {users.length} total</SectionHeading>

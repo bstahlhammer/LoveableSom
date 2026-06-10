@@ -9,6 +9,7 @@ import FilterBar from '../components/FilterBar.jsx'
 import FilterSheet from '../components/FilterSheet.jsx'
 import { getMatchTag } from '../constants/matchThresholds.js'
 import TwoSignalBars from '../components/TwoSignalBars.jsx'
+import { trackEvent } from '@/core/analytics'
 
 const SORT_OPTIONS = [
   { value: 'match',     label: 'My Taste' },
@@ -240,6 +241,18 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
   const setFiltersAndPersist = useCallback(f => { setFilters(f) }, [])
   const isMountRef = useRef(true)
 
+  const handleWineTap = useCallback(w => {
+    trackEvent('wine_detail_viewed', { wineName: w.name, catalogId: w._catalogId ?? null, computedMatch: w.computedMatch ?? null })
+    onWineSelect(w)
+  }, [onWineSelect])
+
+  const handleSaveWine = useCallback(wine => {
+    if (!shortlist.isSaved(wine)) {
+      trackEvent('wine_saved', { wineName: wine.name, catalogId: wine._catalogId ?? null })
+    }
+    shortlist.toggle(wine)
+  }, [shortlist])
+
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -454,7 +467,7 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
           <div style={{ padding: '10px 16px 80px' }}>
             <ColorQuickFilter facets={facets} filters={filters} onChange={setFiltersAndPersist} />
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
+              <SortToggle options={SORT_OPTIONS} value={sortKey} onChange={k => { trackEvent('sort_changed', { sortKey: k }); onSortChange(k); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} />
               <button
                 onClick={() => setFiltersAndPersist({ ...filters, natural: !filters.natural })}
                 style={{
@@ -474,8 +487,8 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
                   <WineRowCard
                     key={wine._scanIdx ?? wine.id ?? wine.name}
                     wine={wine} rank={i} sortKey={sortKey}
-                    onTap={onWineSelect}
-                    onSave={() => shortlist.toggle(wine)}
+                    onTap={handleWineTap}
+                    onSave={() => handleSaveWine(wine)}
                     saved={shortlist.isSaved(wine)}
                   />
                 ))
