@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { saveScroll, getScroll } from '../utils/scrollStore.js'
 import { useShortlist } from '../hooks/useShortlist.js'
 import T from '../theme/T.js'
-import { getWines, sortWines, computeMatch, computeMatchWithConfidence, applyFilters, getFilterFacets, EMPTY_FILTERS } from '@/core/api'
+import { getWines, sortWines, computeMatch, computeMatchWithConfidence, applyFilters, getFilterFacets, EMPTY_FILTERS, fetchCatalogImage } from '@/core/api'
 import SortToggle from '../components/SortToggle.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import FilterBar from '../components/FilterBar.jsx'
@@ -279,6 +279,15 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
       }
     })
   }, [baseWines, tasteProfile])
+
+  // Prefetch bottle images for the top 20 wines by match score
+  useEffect(() => {
+    const toFetch = [...scoredWines]
+      .sort((a, b) => (b.adjustedMatch ?? b.computedMatch ?? 0) - (a.adjustedMatch ?? a.computedMatch ?? 0))
+      .filter(w => w._catalogId && !w.imageUrl)
+      .slice(0, 20)
+    for (const w of toFetch) fetchCatalogImage(w._catalogId, w.name)
+  }, [scoredWines])
 
   const facets = useMemo(() => getFilterFacets(scoredWines), [scoredWines])
   const filteredWines = useMemo(() => applyFilters(scoredWines, filters), [scoredWines, filters])

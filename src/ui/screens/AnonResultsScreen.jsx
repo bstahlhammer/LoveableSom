@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import T from '../theme/T.js'
-import { sortWines, applyFilters, getFilterFacets, EMPTY_FILTERS, getWines } from '@/core/api'
+import { sortWines, applyFilters, getFilterFacets, EMPTY_FILTERS, getWines, fetchCatalogImage } from '@/core/api'
 import { fitBarTone } from '../constants/matchThresholds.js'
 import SortToggle from '../components/SortToggle.jsx'
 import UpsellBanner from '../components/UpsellBanner.jsx'
@@ -186,6 +186,14 @@ export default function AnonResultsScreen({ navigate, goBack, onWineSelect, tast
       scanMessage:   r.message || 'I could not identify a specific wine from that image. Try a closer, sharper photo where the full bottle label, shelf tag, or wine-list line is readable.',
     }
   }, [scannedWines])
+
+  // Prefetch bottle images for the top 20 catalog wines in list order
+  useEffect(() => {
+    const toFetch = allWines
+      .filter(w => w._catalogId && !w.imageUrl)
+      .slice(0, 20)
+    for (const w of toFetch) fetchCatalogImage(w._catalogId, w.name)
+  }, [allWines])
 
   const facets = useMemo(() => getFilterFacets(allWines), [allWines])
   const filteredWines = useMemo(() => applyFilters(allWines, filters), [allWines, filters])
