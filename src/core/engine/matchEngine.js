@@ -1,6 +1,26 @@
 import { RATING_BUCKETS } from '../data/mockData.js'
+import { VINTAGE_QUALITY } from '../data/vintageQuality.js'
 
 const bucketById = Object.fromEntries(RATING_BUCKETS.map(b => [b.id, b]))
+
+const PROFILE_CONF_EXPONENT = 0.65
+
+function profileConfidenceFactor(c) {
+  return 0.60 + 0.40 * Math.pow(Math.max(0, Math.min(1, c)), PROFILE_CONF_EXPONENT)
+}
+
+export function vintageAdjustment(wine) {
+  if (!wine.vintage || !wine.region) return 0
+  const year = parseInt(wine.vintage, 10)
+  if (isNaN(year)) return 0
+  const regionKey = Object.keys(VINTAGE_QUALITY).find(k =>
+    wine.region.includes(k) || k.includes(wine.region)
+  )
+  if (!regionKey) return 0
+  const quality = VINTAGE_QUALITY[regionKey]?.[year]
+  if (quality == null) return 0
+  return quality * 4
+}
 
 const CHARACTER_AXES = ['earthiness', 'funk', 'mineral', 'oak', 'floral']
 
@@ -25,7 +45,7 @@ const CHARACTER_AXES = ['earthiness', 'funk', 'mineral', 'oak', 'floral']
  * }} tasteProfile
  * @returns {number} 0–100
  */
-export function computeMatch(wine, tasteProfile) {
+export function computeMatch(wine, tasteProfile, context = null) {
   if (!tasteProfile || !tasteProfile.palate) return null
 
   const p = tasteProfile.palate
@@ -102,6 +122,35 @@ export function computeMatch(wine, tasteProfile) {
     }
   }
 
+  // Vintage quality adjustment (±4 pts)
+  score += vintageAdjustment(wine)
+
+  // Context-aware modifiers (optional)
+  if (context) {
+    const { buyingFor, scanIntentTags = [], mealAppeal } = context
+    let contextDelta = 0
+    if (buyingFor === 'gift') {
+      if (wine.adventurousness >= 4) contextDelta -= 8
+      if (wine.isCrowd)              contextDelta += 5
+    }
+    if (buyingFor === 'hosting') {
+      if (wine.isCrowd)              contextDelta += 7
+      if (wine.adventurousness >= 4) contextDelta -= 5
+    }
+    if (scanIntentTags.includes('splurge')) {
+      if (wine.rating >= 93)         contextDelta += 8
+      if (wine.priceNum < 20)        contextDelta -= 6
+    }
+    if (scanIntentTags.includes('everyday')) {
+      if (wine.priceNum > 40)        contextDelta -= 5
+    }
+    if (scanIntentTags.includes('food_pairing')) {
+      if (mealAppeal && wine.pairings?.includes(mealAppeal)) contextDelta += 10
+      else if (!wine.pairings?.length)                       contextDelta -= 4
+    }
+    score += Math.max(-20, Math.min(20, contextDelta))
+  }
+
   return Math.max(0, Math.min(100, score))
 }
 
@@ -120,10 +169,10 @@ export function computeMatch(wine, tasteProfile) {
  *
  * @returns {{ score: number, rawScore: number, isLow: boolean, reason: string|null }}
  */
-export function computeMatchWithConfidence(wine, tasteProfile) {
+export function computeMatchWithConfidence(wine, tasteProfile, context = null) {
   const rawScore = typeof wine.computedMatch === 'number'
     ? wine.computedMatch
-    : computeMatch(wine, tasteProfile)
+    : computeMatch(wine, tasteProfile, context)
 
   if (rawScore === null || rawScore === undefined) {
     return { score: null, rawScore: null, isLow: false, reason: null, flags: [], confidence: null, profileConf: 0, criticRating: null, priceNum: null }
@@ -132,10 +181,10 @@ export function computeMatchWithConfidence(wine, tasteProfile) {
   let conf = 1.0
   const flags = []
 
-  // Profile completeness — inferenceConfidence is 0–1 (capped totalWeight of all signals)
+  // Profile completeness — smooth S-curve: more ratings → less dampening, visibly
   const profileConf = tasteProfile?.inferenceConfidence ?? 0
-  if (profileConf < 0.4)       { conf *= 0.65; flags.push('profile') }
-  else if (profileConf < 0.95) { conf *= 0.82; flags.push('profile') }
+  conf *= profileConfidenceFactor(profileConf)
+  if (profileConf < 0.95) flags.push('profile')
 
   // Critic rating — "highly rated" means 90+; null means quality is unknown
   const rating = wine.rating
@@ -153,7 +202,10 @@ export function computeMatchWithConfidence(wine, tasteProfile) {
     else if (priceNum < 20)  { conf *= 0.91; flags.push('price') }
   }
 
-  const isLow = flags.length > 0
+  // Context modifiers are already baked into rawScore — flag them for transparency
+  if (context) flags.push('context')
+
+  const isLow = flags.some(f => f !== 'context')
   const score = isLow
     ? Math.max(0, Math.min(100, Math.round(rawScore * conf + 50 * (1 - conf))))
     : rawScore

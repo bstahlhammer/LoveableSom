@@ -75,6 +75,17 @@ function pillTooltip(flags, hasFlavorData) {
   return null
 }
 
+function getCertaintyTier(wine, sortKey) {
+  if (sortKey !== 'match') return 'confident'
+  const conf = wine.matchConfidence
+  const flags = wine.matchFlags ?? []
+  if (conf === null || conf === undefined) return 'confident'
+  const hasBoth = flags.includes('profile') && flags.includes('quality')
+  if (conf < 0.65 || hasBoth) return 'limited'
+  if (conf < 0.85 || flags.includes('profile') || flags.includes('quality')) return 'estimated'
+  return 'confident'
+}
+
 function ConfidencePill({ flags, wine }) {
   const [open, setOpen] = useState(false)
   if (!flags.length) return null
@@ -131,6 +142,35 @@ function SortRationale({ wine, sortKey }) {
       : <div style={{ ...base, color: T.ink300 }}>price not on file</div>
   }
   return null
+}
+
+function LimitedBars({ wine, score }) {
+  const [tipOpen, setTipOpen] = useState(false)
+  useEffect(() => {
+    if (!tipOpen) return
+    const t = setTimeout(() => setTipOpen(false), 4000)
+    return () => clearTimeout(t)
+  }, [tipOpen])
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ flex: 1, opacity: 0.25 }}>
+          <TwoSignalBars tasteFit={score} wePoints={wine.rating ?? null} />
+        </div>
+        <span
+          aria-label="Limited confidence — tap for details"
+          onClick={e => { e.stopPropagation(); setTipOpen(o => !o) }}
+          style={{ fontSize: 11, fontWeight: 700, color: T.ink300, cursor: 'pointer', border: `1px solid ${T.ink200}`, borderRadius: '50%', width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+        >?</span>
+      </div>
+      {tipOpen && (
+        <div style={{ marginTop: 5, padding: '6px 10px', background: T.ink50, border: `1px solid ${T.ink150}`, borderRadius: 8, fontSize: 11, color: T.ink600, fontFamily: T.fontBody, lineHeight: 1.5 }}
+          onClick={e => e.stopPropagation()}>
+          Score is based on limited data{wine.matchReason ? ` — ${wine.matchReason}` : ''}.
+        </div>
+      )}
+    </div>
+  )
 }
 
 function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
@@ -198,7 +238,17 @@ function WineRowCard({ wine, rank, onTap, onSave, saved, sortKey }) {
       {noData && (
         <div style={{ fontSize: 11, color: T.ink300, fontFamily: T.fontBody, fontStyle: 'italic' }}>No taste data available — we can't assess fit for your palate</div>
       )}
-      <TwoSignalBars tasteFit={noData ? null : score} wePoints={wine.rating ?? null} />
+      {(() => {
+        if (noData) return <TwoSignalBars tasteFit={null} wePoints={wine.rating ?? null} />
+        const tier = getCertaintyTier(wine, sortKey)
+        if (tier === 'limited') return <LimitedBars wine={wine} score={score} />
+        if (tier === 'estimated') return (
+          <div style={{ opacity: 0.4, border: `1.5px dashed ${T.ink300}`, borderRadius: 6, padding: '4px 6px' }}>
+            <TwoSignalBars tasteFit={score} wePoints={wine.rating ?? null} />
+          </div>
+        )
+        return <TwoSignalBars tasteFit={score} wePoints={wine.rating ?? null} />
+      })()}
       {!noData && wine.matchIsLow && <ConfidencePill flags={wine.matchFlags ?? []} wine={wine} />}
       {wine.tasting && (
         <p style={{ fontSize: 12, color: T.ink500, margin: 0, lineHeight: 1.5, fontFamily: T.fontBody, fontStyle: 'italic' }}>
@@ -278,10 +328,11 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
 
   const scoredWines = useMemo(() => {
     if (!tasteProfile) return baseWines
+    const ctx = { buyingFor, scanIntentTags: scanIntent?.tags ?? [], mealAppeal }
     return baseWines.map(w => {
-      const rawRaw = computeMatch(w, tasteProfile)
+      const rawRaw = computeMatch(w, tasteProfile, ctx)
       const raw = Number.isFinite(rawRaw) ? rawRaw : null
-      const { score: adjusted, isLow, reason, flags } = computeMatchWithConfidence({ ...w, computedMatch: raw }, tasteProfile)
+      const { score: adjusted, isLow, reason, flags, confidence } = computeMatchWithConfidence({ ...w, computedMatch: raw }, tasteProfile, ctx)
       return {
         ...w,
         computedMatch: raw,
@@ -289,9 +340,10 @@ export default function PersonalizedResultsScreen({ navigate, goBack, tasteProfi
         matchIsLow: isLow,
         matchReason: reason,
         matchFlags: flags,
+        matchConfidence: confidence,
       }
     })
-  }, [baseWines, tasteProfile])
+  }, [baseWines, tasteProfile, buyingFor, scanIntent, mealAppeal])
 
   // Prefetch bottle images for the top 20 wines by match score
   useEffect(() => {
