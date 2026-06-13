@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import T from '../theme/T.js'
+import VocabTerm, { VocabSheet } from '../components/VocabTerm.jsx'
+import { useVocabSheet } from '../hooks/useVocabSheet.js'
+import glossary from '@/core/data/wineGlossary.js'
 import { nearestTasteProfile, buildTasteIdentity } from '@/core/api'
 import { useTasteProfileSync } from '../hooks/useTasteProfileSync.js'
 import { supabase } from '@/integrations/supabase/client'
@@ -70,7 +73,7 @@ function palateDescriptor(axis, value) {
   return ''
 }
 
-function Radar({ size = 220, dims, secondary }) {
+function Radar({ size = 220, dims, secondary, onLabelTap }) {
   const pad = 30
   const vbSize = size + pad * 2
   const cx = vbSize / 2, cy = vbSize / 2, r = size * 0.36
@@ -103,7 +106,10 @@ function Radar({ size = 220, dims, secondary }) {
         const [x, y] = point(i, 1.24)
         return (
           <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
-            fontFamily="'Outfit',sans-serif" fontSize={10.5} fontWeight={600} fill={T.ink500}>
+            fontFamily="'Outfit',sans-serif" fontSize={10.5} fontWeight={600}
+            fill={onLabelTap ? T.forest500 : T.ink500}
+            onClick={onLabelTap ? () => onLabelTap(d.label.toLowerCase()) : undefined}
+            style={{ cursor: onLabelTap ? 'pointer' : 'default', textDecoration: onLabelTap ? 'underline' : 'none', textDecorationStyle: 'dotted' }}>
             {d.label}
           </text>
         )
@@ -165,7 +171,7 @@ function PalateTranslation({ palate }) {
 }
 
 // ─── View A: Radar ────────────────────────────────────────────────────────────
-function RadarView({ radarDims, tasteProfile, character }) {
+function RadarView({ radarDims, tasteProfile, character, onVocabTerm }) {
   const charEntries = character
     ? CHAR_AXES.map(a => ({ ...a, value: character[a.key] })).filter(a => a.value != null)
     : []
@@ -186,7 +192,7 @@ function RadarView({ radarDims, tasteProfile, character }) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 0' }}>
-        <Radar size={220} dims={radarDims} />
+        <Radar size={220} dims={radarDims} onLabelTap={onVocabTerm} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 14, fontSize: 10.5, color: T.ink500, marginTop: -4, marginBottom: 18 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -278,7 +284,7 @@ function RadarView({ radarDims, tasteProfile, character }) {
 }
 
 // ─── View B: Stats ────────────────────────────────────────────────────────────
-function StatsView({ palate, updateAxis, handleSaveTune, savingTune }) {
+function StatsView({ palate, updateAxis, handleSaveTune, savingTune, onVocabTerm }) {
   return (
     <>
       <h2 style={{ fontFamily: T.fontDisplay, fontWeight: 500, fontSize: 24, lineHeight: 1.1, margin: '4px 0 16px', letterSpacing: '-0.01em', color: T.ink900 }}>
@@ -291,7 +297,10 @@ function StatsView({ palate, updateAxis, handleSaveTune, savingTune }) {
           {AXES.map(a => (
             <div key={a.key}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: T.ink700, textTransform: 'capitalize' }}>{a.key}</span>
+                <span
+                  style={{ fontSize: 12, fontWeight: 600, color: onVocabTerm ? T.forest500 : T.ink700, textTransform: 'capitalize', borderBottom: onVocabTerm ? `1px dotted ${T.forest400}` : 'none', cursor: onVocabTerm ? 'pointer' : 'default' }}
+                  onClick={onVocabTerm ? () => onVocabTerm(a.key) : undefined}
+                >{a.key}</span>
                 <span style={{ fontSize: 11, color: T.forest500, fontWeight: 700 }}>{palateDescriptor(a.key, palate[a.key])}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: T.ink400, marginBottom: 4 }}>
@@ -923,6 +932,7 @@ function ProfileViewBar({ active, onChange }) {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, onProfileUpdate }) {
+  const { openTerm, vocabEntry, closeVocab } = useVocabSheet()
   const { saveProfile } = useTasteProfileSync(auth?.user?.id)
   const [palate, setPalate] = useState(tasteProfile?.palate || { body: 50, sweetness: 30, tannin: 50, acidity: 55 })
   const [character, setCharacter] = useState(tasteProfile?.character || {})
@@ -1068,9 +1078,9 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
   function renderView() {
     switch (view) {
       case 'radar':
-        return <RadarView radarDims={radarDims} tasteProfile={tasteProfile} character={character} />
+        return <RadarView radarDims={radarDims} tasteProfile={tasteProfile} character={character} onVocabTerm={openTerm} />
       case 'stats':
-        return <StatsView palate={palate} updateAxis={updateAxis} handleSaveTune={handleSaveTune} savingTune={savingTune} />
+        return <StatsView palate={palate} updateAxis={updateAxis} handleSaveTune={handleSaveTune} savingTune={savingTune} onVocabTerm={openTerm} />
       case 'tonight':
         return <TonightView radarDims={radarDims} tonightDims={tonightDims} />
       case 'words':
@@ -1145,6 +1155,8 @@ export default function ProfileScreen({ navigate, goBack, auth, tasteProfile, on
           {toast}
         </div>
       )}
+
+      <VocabSheet entry={vocabEntry} onClose={closeVocab} />
     </div>
   )
 }

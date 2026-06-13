@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
 import T from '../theme/T.js'
+import VocabTerm, { VocabSheet } from '../components/VocabTerm.jsx'
+import { useVocabSheet } from '../hooks/useVocabSheet.js'
+import { parseWithVocab } from '@/core/utils/parseWithVocab.js'
+import glossary from '@/core/data/wineGlossary.js'
 import {
   computeApproachability,
   computeMatch,
@@ -35,7 +39,7 @@ const RADAR_AXES = [
   { key: 'sweetness', label: 'Sweetness' },
 ]
 
-function WineRadar({ wine, tasteProfile, size = 180 }) {
+function WineRadar({ wine, tasteProfile, size = 180, onLabelTap }) {
   const dims = RADAR_AXES.map(a => ({ label: a.label, value: clamp(wine[a.key] ?? 50) / 100 }))
   const secondary = tasteProfile
     ? RADAR_AXES.map(a => clamp(tasteProfile.palate?.[a.key] ?? 50) / 100)
@@ -68,7 +72,9 @@ function WineRadar({ wine, tasteProfile, size = 180 }) {
         const [x, y] = point(i, 1.28)
         return (
           <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle"
-            fontFamily="'Outfit',sans-serif" fontSize={10.5} fontWeight={600} fill={T.ink500}>
+            fontFamily="'Outfit',sans-serif" fontSize={10.5} fontWeight={600} fill={onLabelTap ? T.forest500 : T.ink500}
+            onClick={onLabelTap ? () => onLabelTap(d.label.toLowerCase()) : undefined}
+            style={{ cursor: onLabelTap ? 'pointer' : 'default', textDecoration: onLabelTap ? 'underline' : 'none', textDecorationStyle: 'dotted' }}>
             {d.label}
           </text>
         )
@@ -114,6 +120,7 @@ function BlankLabel({ hue, width = 114, height = 204 }) {
 }
 
 export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile, activeScan, onRate, onWineSelect }) {
+  const { openTerm, vocabEntry, closeVocab } = useVocabSheet()
   const [showHonest, setShowHonest] = useState(false)
   const [showAboutScore, setShowAboutScore] = useState(false)
   const [stars, setStars] = useState(0)
@@ -400,12 +407,16 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           </div>
         )}
 
-        {/* Tasting notes — italic serif */}
+        {/* Tasting notes — italic serif with tappable vocab terms */}
         {wine.tasting && (
           <div style={{ marginBottom: 16 }}>
             <SectionLabel>Tastes like</SectionLabel>
             <p style={{ fontFamily: T.fontDisplay, fontStyle: 'italic', fontSize: 16, color: T.ink800, lineHeight: 1.55, marginTop: 8, marginBottom: 0 }}>
-              {wine.tasting}
+              {parseWithVocab(wine.tasting, glossary).map((seg, i) =>
+                typeof seg === 'string'
+                  ? seg
+                  : <VocabTerm key={i} entry={seg.entry}>{seg.text}</VocabTerm>
+              )}
             </p>
           </div>
         )}
@@ -501,7 +512,7 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           <div style={{ marginBottom: 18 }}>
             <SectionLabel>Style profile{tasteProfile ? ' · vs your palate' : ''}</SectionLabel>
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
-              <WineRadar wine={wine} tasteProfile={tasteProfile} />
+              <WineRadar wine={wine} tasteProfile={tasteProfile} onLabelTap={openTerm} />
             </div>
             {tasteProfile && (
               <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 2 }}>
@@ -705,6 +716,8 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
           )}
         </div>
       </div>
+
+      <VocabSheet entry={vocabEntry} onClose={closeVocab} />
     </div>
   )
 }
