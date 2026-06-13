@@ -16,7 +16,7 @@ import { createClient as _createSupabaseClient } from '@supabase/supabase-js'
 import { sortWines as _sortWines } from './engine/sortEngine.js'
 import { chooseHeroPicks as _chooseHeroPicks } from './engine/heroPicksEngine.js'
 import { computeApproachability as _computeApproachability } from './engine/approachabilityEngine.js'
-import { computeMatch as _computeMatch, computeMatchWithConfidence as _computeMatchWithConfidence, explainMatch as _explainMatch, explainMismatch as _explainMismatch } from './engine/matchEngine.js'
+import { computeMatch as _computeMatch, computeMatchWithConfidence as _computeMatchWithConfidence, explainMatch as _explainMatch, explainMismatch as _explainMismatch, vintageAdjustment as _vintageAdjustment } from './engine/matchEngine.js'
 import {
   inferPalateFromRatings as _inferPalateFromRatings,
   nearestTasteProfile as _nearestTasteProfile,
@@ -84,12 +84,16 @@ export function computeApproachability(wine) {
   return _computeApproachability(wine)
 }
 
-export function computeMatch(wine, tasteProfile) {
-  return _computeMatch(wine, tasteProfile)
+export function computeMatch(wine, tasteProfile, context = null) {
+  return _computeMatch(wine, tasteProfile, context)
 }
 
-export function computeMatchWithConfidence(wine, tasteProfile) {
-  return _computeMatchWithConfidence(wine, tasteProfile)
+export function computeMatchWithConfidence(wine, tasteProfile, context = null) {
+  return _computeMatchWithConfidence(wine, tasteProfile, context)
+}
+
+export function vintageAdjustment(wine) {
+  return _vintageAdjustment(wine)
 }
 
 export function explainMatch(wine, tasteProfile) {
@@ -150,6 +154,27 @@ export function findWineImage(name) {
 
 // ---------- Wine catalog (Supabase — 100k+ wines) ----------
 
+// Correct common OCR character substitutions before catalog lookup (spec 021).
+// Only fires when digits are adjacent to letters — does not affect years or counts.
+function correctOcrName(name) {
+  if (!name?.trim()) return name ?? ''
+  let s = name
+  // Unicode ligatures
+  s = s.replace(/ﬁ/g, 'fi').replace(/ﬂ/g, 'fl').replace(/ﬀ/g, 'ff').replace(/ﬃ/g, 'ffi').replace(/ﬄ/g, 'ffl')
+  // 0→O when adjacent to letters; 1→l when between letters or starting a word followed by 3+ letters
+  s = s.replace(/(?<=[a-zA-Z])0|0(?=[a-zA-Z])/g, 'O')
+  s = s.replace(/(?<=[a-zA-Z])1(?=[a-zA-Z])|1(?=[a-zA-Z]{3,})/g, 'l')
+  // CamelCase split (e.g., SilverOak → Silver Oak)
+  s = s.replace(/([a-z])([A-Z])/g, '$1 $2')
+  // Strip leading noise: bullet chars, lone hyphens, or shelf number digits followed by punctuation
+  // (e.g., "· Wine", "- Wine", "3. Wine") — but not bare digits that start real wine names like "19 Crimes"
+  s = s.replace(/^[•·]+\s*|^-+\s*|^\d{1,3}[.:)]\s*/, '')
+  return s.trim()
+}
+
+const FUZZY_LOOKUP_THRESHOLD = 0.35
+const MIN_FUZZY_NAME_LEN     = 6
+
 const _SUPABASE_URL      = 'https://bromlnbihmfknqcdbieq.supabase.co'
 const _SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJyb21sbmJpaG1ma25xY2RiaWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMTQyMzMsImV4cCI6MjA5MzU5MDIzM30.jwvh8WQkX5ssSKhY512CH03GG5QRijtLGhNs29iYUjI'
 
@@ -175,31 +200,43 @@ const _normCatalog = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g,
  */
 export async function lookupWineCatalog(name) {
   if (!name) return null
+  const correctedName = correctOcrName(name)
   try {
     const client = _supabase()
+    const SELECT_COLS = 'id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color'
 
     // 1. Exact match — maybeSingle() returns null (not 406) when no row is found
     const { data: exact, error: e1 } = await client
       .from('wine_catalog')
-      .select('id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color')
-      .ilike('name', name)
+      .select(SELECT_COLS)
+      .ilike('name', correctedName)
       .limit(1)
       .maybeSingle()
-    if (e1) console.error('[catalog] exact match error:', e1.message, '| name:', name)
+    if (e1) console.error('[catalog] exact match error:', e1.message, '| name:', correctedName)
     if (exact) return _catalogToWine(exact)
 
     // 2. Full-text search
-    const query = _normCatalog(name).split(' ').filter(Boolean).join(' & ')
+    const query = _normCatalog(correctedName).split(' ').filter(Boolean).join(' & ')
     if (!query) return null
     const { data: fts, error: e2 } = await client
       .from('wine_catalog')
-      .select('id,name,producer,vintage,grape,region,country,description,critic_score,price_usd,body,tannin,sweetness,acidity,color')
+      .select(SELECT_COLS)
       .textSearch('name', query, { type: 'websearch', config: 'english' })
       .limit(1)
-    if (e2) console.error('[catalog] fts error:', e2.message, '| name:', name)
+    if (e2) console.error('[catalog] fts error:', e2.message, '| name:', correctedName)
     if (fts?.length) return _catalogToWine(fts[0])
+
+    // 3. Fuzzy trigram pass — recovers word-order mismatches and abbreviations (spec 020)
+    if (correctedName.trim().length >= MIN_FUZZY_NAME_LEN) {
+      const { data: fuzzy, error: e3 } = await client.rpc('wine_catalog_fuzzy_lookup', {
+        query: correctedName,
+        threshold: FUZZY_LOOKUP_THRESHOLD,
+      })
+      if (e3) console.warn('[catalog] fuzzy lookup unavailable:', e3.message)
+      else if (fuzzy?.length) return _catalogToWine(fuzzy[0])
+    }
   } catch (err) {
-    console.error('[catalog] lookup threw:', err?.message, '| name:', name)
+    console.error('[catalog] lookup threw:', err?.message, '| name:', correctedName)
   }
   return null
 }
