@@ -229,18 +229,47 @@ function mergeCatalogWine(scanned, cat) {
   }
 }
 
-// Split into 2×3 tiles (portrait) or 3×2 (landscape) with 25% overlap between tiles.
-// Overlap ensures labels near tile edges are fully captured in at least one tile.
+// Layout thresholds for dynamic tile count (spec 023)
+const ASPECT_VERY_WIDE = 2.5   // 4×1 wide strip
+const ASPECT_WIDE      = 1.8   // 3×2 landscape
+const ASPECT_VERY_TALL = 0.55  // 1×4 tall strip
+const SHORT_EDGE_SMALL = 600   // 1×1 single tile
+const OVL          = 0.25
+const MAX_TILE_EDGE = 1500
+const QUALITY       = 0.82
+
+function selectTileLayout(w, h) {
+  const aspect = w / h
+  const shortEdge = Math.min(w, h)
+  if (shortEdge <= SHORT_EDGE_SMALL) return { cols: 1, rows: 1 }
+  if (aspect >= ASPECT_VERY_WIDE)   return { cols: 4, rows: 1 }
+  if (aspect >= ASPECT_WIDE)        return { cols: 3, rows: 2 }
+  if (aspect < ASPECT_VERY_TALL)    return { cols: 1, rows: 4 }
+  return { cols: 2, rows: 3 }
+}
+
+// Split into tiles with 25% overlap. Layout adapts to aspect ratio:
+// 1×1 for small images, 4×1/1×4 strips for panoramics, 3×2/2×3 otherwise.
 function splitImageIntoTiles(img) {
   const W = img.width
   const H = img.height
-  const isPortrait = H >= W
-  const COLS = isPortrait ? 2 : 3
-  const ROWS = isPortrait ? 3 : 2
-  const OVL = 0.25
-  const MAX_TILE_EDGE = 1500
-  const QUALITY = 0.82
+  const { cols: COLS, rows: ROWS } = selectTileLayout(W, H)
 
+  // Single-tile fast path — no tiling overhead for small or close-up images
+  if (COLS === 1 && ROWS === 1) {
+    const scale = Math.min(1, MAX_TILE_EDGE / Math.max(W, H))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(W * scale)
+    canvas.height = Math.round(H * scale)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return []
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    const dataUrl = canvas.toDataURL('image/jpeg', QUALITY)
+    const comma = dataUrl.indexOf(',')
+    return comma >= 0 ? [{ base64: dataUrl.slice(comma + 1), normRect: { x: 0, y: 0, w: 1, h: 1 } }] : []
+  }
+
+  // Multi-tile path with 25% overlap
   // Tile size formula: tileW * [(1-OVL)*(COLS-1) + 1] = W
   const tileW = W / ((1 - OVL) * (COLS - 1) + 1)
   const tileH = H / ((1 - OVL) * (ROWS - 1) + 1)
@@ -391,12 +420,16 @@ function isDescriptiveName(name) {
 }
 
 function normalizeWineName(name) {
+  if (!name) return ''
   return String(name)
+    .normalize('NFC')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toLowerCase()
+    .replace(/[-–]/g, ' ')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 20)
+    .slice(0, 40)
 }
 
 // Detects complete wine JSON objects in a streaming response and fires the callback
