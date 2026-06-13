@@ -4,6 +4,7 @@ import { nearestTasteProfile, buildTasteIdentity } from '@/core/api'
 import { useTasteProfileSync } from '../hooks/useTasteProfileSync.js'
 import { supabase } from '@/integrations/supabase/client'
 import { trackEvent } from '@/core/analytics'
+import { describePalate } from '@/core/engine/palateDescriptor.js'
 
 const AXES = [
   { key: 'body',      label: 'body',      lo: 'light',    hi: 'full'   },
@@ -123,6 +124,46 @@ function SecLabel({ children }) {
   )
 }
 
+// ─── Palate Translation ───────────────────────────────────────────────────────
+function PalateTranslation({ palate }) {
+  const result = describePalate(palate)
+  if (!result) return null
+  return (
+    <div style={{
+      background: T.forest50, borderRadius: 14, padding: '14px 16px',
+      border: `1px solid ${T.forest100}`, marginBottom: 18,
+    }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color: T.forest500, letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.fontBody, marginBottom: 8 }}>
+        What this means for you
+      </div>
+      <p style={{ fontFamily: T.fontDisplay, fontStyle: 'italic', fontSize: 16, color: T.ink800, lineHeight: 1.45, margin: '0 0 10px' }}>
+        {result.headline}
+      </p>
+      {result.sentences.map((s, i) => (
+        <p key={i} style={{ fontFamily: T.fontBody, fontSize: 13, color: T.ink600, lineHeight: 1.6, margin: i < result.sentences.length - 1 ? '0 0 8px' : 0 }}>
+          {s}
+        </p>
+      ))}
+      {result.shopWords.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: T.ink400, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: T.fontBody, marginBottom: 6 }}>
+            Look for these words
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {result.shopWords.map(w => (
+              <span key={w} style={{
+                fontSize: 11.5, padding: '4px 10px', borderRadius: 9999,
+                background: T.forest100, color: T.forest700,
+                fontFamily: T.fontBody, fontWeight: 500,
+              }}>{w}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── View A: Radar ────────────────────────────────────────────────────────────
 function RadarView({ radarDims, tasteProfile, character }) {
   const charEntries = character
@@ -155,6 +196,8 @@ function RadarView({ radarDims, tasteProfile, character }) {
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.ink300 }} /> still learning
         </span>
       </div>
+
+      <PalateTranslation palate={tasteProfile?.palate} />
 
       <div style={{ marginBottom: 18 }}>
         <SecLabel>Recent shifts · last 30 days</SecLabel>
