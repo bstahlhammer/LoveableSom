@@ -521,6 +521,7 @@ export default function App() {
             tasteProfile={tasteProfile}
             activeScan={activeScan}
             onRate={handleRate}
+            onWineSelect={w => handleWineSelect(w, 'wineDetail')}
           />
         )
       case 'myWines':

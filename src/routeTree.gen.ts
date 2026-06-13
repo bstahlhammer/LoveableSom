@@ -13,6 +13,7 @@ import { Route as BirdsRouteImport } from './routes/birds'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiWineImageRouteImport } from './routes/api/wine-image'
+import { Route as ApiSimilarWinesRouteImport } from './routes/api/similar-wines'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 import { Route as ApiLocateBottleRouteImport } from './routes/api/locate-bottle'
 import { Route as ApiLabelRequestRouteImport } from './routes/api/label-request'
@@ -39,6 +40,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiWineImageRoute = ApiWineImageRouteImport.update({
   id: '/api/wine-image',
   path: '/api/wine-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSimilarWinesRoute = ApiSimilarWinesRouteImport.update({
+  id: '/api/similar-wines',
+  path: '/api/similar-wines',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiScanRoute = ApiScanRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/api/label-request': typeof ApiLabelRequestRoute
   '/api/locate-bottle': typeof ApiLocateBottleRoute
   '/api/scan': typeof ApiScanRoute
+  '/api/similar-wines': typeof ApiSimilarWinesRoute
   '/api/wine-image': typeof ApiWineImageRoute
 }
 export interface FileRoutesByTo {
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/api/label-request': typeof ApiLabelRequestRoute
   '/api/locate-bottle': typeof ApiLocateBottleRoute
   '/api/scan': typeof ApiScanRoute
+  '/api/similar-wines': typeof ApiSimilarWinesRoute
   '/api/wine-image': typeof ApiWineImageRoute
 }
 export interface FileRoutesById {
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/api/label-request': typeof ApiLabelRequestRoute
   '/api/locate-bottle': typeof ApiLocateBottleRoute
   '/api/scan': typeof ApiScanRoute
+  '/api/similar-wines': typeof ApiSimilarWinesRoute
   '/api/wine-image': typeof ApiWineImageRoute
 }
 export interface FileRouteTypes {
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/api/label-request'
     | '/api/locate-bottle'
     | '/api/scan'
+    | '/api/similar-wines'
     | '/api/wine-image'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/api/label-request'
     | '/api/locate-bottle'
     | '/api/scan'
+    | '/api/similar-wines'
     | '/api/wine-image'
   id:
     | '__root__'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/api/label-request'
     | '/api/locate-bottle'
     | '/api/scan'
+    | '/api/similar-wines'
     | '/api/wine-image'
   fileRoutesById: FileRoutesById
 }
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   ApiLabelRequestRoute: typeof ApiLabelRequestRoute
   ApiLocateBottleRoute: typeof ApiLocateBottleRoute
   ApiScanRoute: typeof ApiScanRoute
+  ApiSimilarWinesRoute: typeof ApiSimilarWinesRoute
   ApiWineImageRoute: typeof ApiWineImageRoute
 }
 
@@ -201,6 +214,13 @@ declare module '@tanstack/react-router' {
       path: '/api/wine-image'
       fullPath: '/api/wine-image'
       preLoaderRoute: typeof ApiWineImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/similar-wines': {
+      id: '/api/similar-wines'
+      path: '/api/similar-wines'
+      fullPath: '/api/similar-wines'
+      preLoaderRoute: typeof ApiSimilarWinesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/scan': {
@@ -266,6 +286,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLabelRequestRoute: ApiLabelRequestRoute,
   ApiLocateBottleRoute: ApiLocateBottleRoute,
   ApiScanRoute: ApiScanRoute,
+  ApiSimilarWinesRoute: ApiSimilarWinesRoute,
   ApiWineImageRoute: ApiWineImageRoute,
 }
 export const routeTree = rootRouteImport

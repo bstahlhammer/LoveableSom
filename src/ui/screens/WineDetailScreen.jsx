@@ -8,7 +8,9 @@ import {
   explainMismatch,
   fetchCatalogImage,
   locateBottleInScan,
+  vintageAdjustment,
 } from '@/core/api'
+import { lookupEducation } from '@/core/data/wineEducation.js'
 import ShelfSpotlight from '../components/ShelfSpotlight.jsx'
 import { StarRating, TasteMatchPicker } from '../components/WineRatingRow.jsx'
 import { useShortlist } from '../hooks/useShortlist.js'
@@ -111,7 +113,7 @@ function BlankLabel({ hue, width = 114, height = 204 }) {
   )
 }
 
-export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile, activeScan, onRate }) {
+export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile, activeScan, onRate, onWineSelect }) {
   const [showHonest, setShowHonest] = useState(false)
   const [showAboutScore, setShowAboutScore] = useState(false)
   const [stars, setStars] = useState(0)
@@ -232,8 +234,14 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
             </h1>
 
             {/* vintage · region · varietal */}
-            <div style={{ fontSize: 13, color: T.ink300, fontStyle: 'italic', fontFamily: T.fontDisplay, marginBottom: 6, lineHeight: 1.3 }}>
-              {[wine.region, wine.grape].filter(Boolean).join(' · ')}
+            <div style={{ fontSize: 13, color: T.ink300, fontStyle: 'italic', fontFamily: T.fontDisplay, marginBottom: 6, lineHeight: 1.3, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span>{[wine.vintage && wine.vintage !== 'NV' ? wine.vintage : null, wine.region, wine.grape].filter(Boolean).join(' · ')}</span>
+              {(() => {
+                const adj = vintageAdjustment(wine)
+                if (adj === 4) return <span title="Exceptional vintage for this region" style={{ fontSize: 11, cursor: 'default' }}>⭐</span>
+                if (adj === -4) return <span title="Challenging vintage for this region" style={{ fontSize: 11, color: T.ink400, cursor: 'default' }}>↓</span>
+                return null
+              })()}
             </div>
 
             <StyleBadges wine={wine} />
@@ -401,6 +409,9 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
             </p>
           </div>
         )}
+
+        {/* Education card */}
+        <EducationCard grape={wine.grape} region={wine.region} />
 
         {/* Flavor tags */}
         {(wine.flavorTags?.length > 0 || wine.tags?.length > 0) && (
@@ -625,6 +636,9 @@ export default function WineDetailScreen({ goBack, navigate, wine, tasteProfile,
             <span>Find this wine online</span>
           </a>
         </div>
+
+        {/* Similar wines discovery */}
+        <SimilarWines wine={wine} onWineSelect={onWineSelect} />
 
         {/* Score feedback — only when user is logged in and there's a score to rate */}
         {user && (matchScore !== null || wine.rating > 0) && (
@@ -862,6 +876,118 @@ function SectionLabel({ children }) {
   return (
     <div style={{ fontSize: 10.5, fontWeight: 700, color: T.ink400, letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.fontBody }}>
       {children}
+    </div>
+  )
+}
+
+function EducationCard({ grape, region }) {
+  const text = lookupEducation(grape, region)
+  if (!text) return null
+  return (
+    <div style={{
+      marginBottom: 16,
+      borderLeft: `2px solid ${T.forest300}`,
+      paddingLeft: 12,
+    }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color: T.ink400, letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.fontBody, marginBottom: 6 }}>
+        What makes this interesting
+      </div>
+      <p style={{ fontFamily: T.fontBody, fontSize: 13, color: T.ink600, lineHeight: 1.6, margin: 0 }}>
+        {text}
+      </p>
+    </div>
+  )
+}
+
+function SimilarWines({ wine, onWineSelect }) {
+  const [wines, setWines] = useState(null)
+
+  useEffect(() => {
+    const catalogId = wine?._catalogId ?? (typeof wine?.id === 'number' ? wine.id : null)
+    const hasAxes = wine?.body != null || wine?.tannin != null || wine?.acidity != null || wine?.sweetness != null
+    if (!catalogId || !hasAxes) return
+
+    const params = new URLSearchParams({
+      catalogId: String(catalogId),
+      body: String(wine.body ?? 50),
+      tannin: String(wine.tannin ?? 50),
+      acidity: String(wine.acidity ?? 50),
+      sweetness: String(wine.sweetness ?? 50),
+      grape: wine.grape ?? '',
+      region: wine.region ?? '',
+    })
+
+    let cancelled = false
+    fetch(`/api/similar-wines?${params}`)
+      .then(r => r.json())
+      .then(({ wines: results }) => { if (!cancelled && results?.length) setWines(results) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [wine?._catalogId, wine?.id])
+
+  if (!wines?.length) return null
+
+  const styleMatch = (w) => {
+    const d = Math.sqrt(
+      ((w.body ?? 50) - (wine.body ?? 50)) ** 2 +
+      ((w.tannin ?? 50) - (wine.tannin ?? 50)) ** 2 +
+      ((w.acidity ?? 50) - (wine.acidity ?? 50)) ** 2 +
+      ((w.sweetness ?? 50) - (wine.sweetness ?? 50)) ** 2
+    )
+    return Math.round(Math.max(0, Math.min(100, 100 - (d / 173) * 100)))
+  }
+
+  const hue = (w) => {
+    const text = ((w.grape ?? '') + ' ' + (w.name ?? '')).toLowerCase()
+    if (/merlot|cabernet|syrah|pinot.noir|malbec|tempranillo|barolo|burgundy|bordeaux|rioja|beaujolais/.test(text)) return T.forest700
+    if (/ros[eé]|provence/.test(text)) return T.scarlet300
+    return T.ochre400
+  }
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <SectionLabel>You might also love</SectionLabel>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+        {wines.map((w, i) => {
+          const sim = styleMatch(w)
+          const simColor = sim >= 75 ? T.forest500 : sim >= 55 ? T.ochre500 : T.ink400
+          return (
+            <button
+              key={w.id ?? i}
+              onClick={() => onWineSelect?.(w)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 12px',
+                background: 'white', border: `1px solid ${T.ink150}`,
+                borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                boxShadow: T.shadowMd,
+              }}
+            >
+              <BlankLabel hue={hue(w)} width={32} height={56} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: T.fontDisplay, fontSize: 14, color: T.ink900,
+                  lineHeight: 1.2, marginBottom: 3,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {w.name}
+                </div>
+                <div style={{ fontFamily: T.fontBody, fontSize: 11, color: T.ink400, fontStyle: 'italic' }}>
+                  {[w.grape, w.region].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+              <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                <div style={{ fontSize: 9, fontFamily: T.fontBody, fontWeight: 700, color: T.ink400, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>
+                  Similar style
+                </div>
+                <div style={{ width: 60, height: 4, background: T.ink100, borderRadius: 2 }}>
+                  <div style={{ width: `${sim}%`, height: '100%', background: simColor, borderRadius: 2 }} />
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
