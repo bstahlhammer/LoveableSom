@@ -581,6 +581,17 @@ export default function HomeScreen({ navigate, auth, tasteProfile, hasActiveSess
             Rate a wine I tried
           </button>
 
+          <button onClick={() => navigate('explore')} style={{
+            width: '100%', padding: '10px',
+            background: 'transparent', color: T.ink400,
+            border: 'none',
+            fontSize: 12, fontWeight: 400,
+            fontFamily: T.fontBody, cursor: 'pointer',
+            letterSpacing: '0.01em', textAlign: 'center',
+          }}>
+            Explore wine styles →
+          </button>
+
           {hasProfile ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>

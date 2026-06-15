@@ -33,6 +33,7 @@ import HistoryScreen from './ui/screens/HistoryScreen.jsx'
 import ProfileScreen from './ui/screens/ProfileScreen.jsx'
 import MyWinesScreen from './ui/screens/MyWinesScreen.jsx'
 import ScanReviewScreen from './ui/screens/ScanReviewScreen.jsx'
+import ExploreScreen from './ui/screens/ExploreScreen.jsx'
 import AddWineSheet from './ui/components/AddWineSheet.jsx'
 import { placeFromPhoto } from './ui/utils/photoGeo.js'
 
@@ -233,7 +234,7 @@ export default function App() {
       'home', 'auth',
       'scanPrompt', 'scanning', 'anonResults', 'wineDetail',
       'quizIntro', 'quiz', 'guidedQuiz', 'rateBottles',
-      'profileReveal', 'personalizedResults',
+      'profileReveal', 'personalizedResults', 'explore',
     ])
     if (!auth.user && !GUEST_SCREENS.has(to)) {
       setPendingAfterAuth(to)
@@ -524,6 +525,8 @@ export default function App() {
             onWineSelect={w => handleWineSelect(w, 'wineDetail')}
           />
         )
+      case 'explore':
+        return <ExploreScreen {...nav} tasteProfile={tasteProfile} />
       case 'myWines':
         return <MyWinesScreen {...nav} tasteProfile={tasteProfile} onWineSelect={w => handleWineSelect(w, 'myWines')} />
       case 'history':
